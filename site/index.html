@@ -211,7 +211,7 @@
   <div id="v2-summary">
     <ul>
       <li><b>The MAML step still doesn't help.</b> MEHTA v2 vs compute-matched PEARL + fine-tune: no clear difference on in-distribution goals, new goals or shifted dynamics. Against the control, PEARL-DR + fine-tune, MEHTA v2 is <b>worse</b> under shifted dynamics (−6.84 ± 0.34 vs −6.32 ± 0.16). The perturbed training data is what helps; the meta-update adds nothing on top.</li>
-      <li><b>In-distribution goals are at the ceiling.</b> Every post-trained method ends at about −4.4 to −4.9, against about −4.5 for a controller that knows the goal, so no method can win there. New goals (about −15) are where the room is, and nothing closes that gap yet.</li>
+      <li><b>Most of the headroom is on new goals.</b> An oracle reference (a greedy controller that knows the goal and the dynamics; an estimate, not a proven optimum) scores about −3.8. Post-trained methods close 55–73% of the remaining gap on in-distribution goals, but only about 30% on new goals (≈ −15). <i>Corrected 2026-10-21: an earlier version of this page put the ceiling at about −4.5 and called in-distribution goals "at the ceiling"; the measured oracle shows they are about 0.6–1.1 short of it.</i></li>
       <li><b>Long sparse episodes now work, for every method.</b> With potential-based shaping, waypoint success went from 0% for every v1 method to 27–60% (PEARL-DR 60% ± 28%, PEARL + fine-tune 53% ± 25%, MEHTA v2 27% ± 9%; no clear differences at 3 seeds). This is a fix to the training signal, not a MEHTA result.</li>
       <li><b>Continual:</b> no clear difference. The proximal term again increased forgetting (0.33 ± 0.58 vs −1.08 ± 0.58 without it).</li>
     </ul>

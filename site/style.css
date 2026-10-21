@@ -197,3 +197,4 @@ footer { border-top: 1px solid var(--rule); padding: 24px 16px 40px; text-align:
 .findings li, #limits li { margin-bottom: .55em; }
 td.n { font-variant-numeric: tabular-nums; white-space: nowrap; }
 p code, li code { overflow-wrap: anywhere; font-size: .86em; }
+.chosen td { background: var(--accent-soft); }

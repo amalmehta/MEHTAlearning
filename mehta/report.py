@@ -42,9 +42,17 @@ VERSIONS = {
                base_a=("pearl_cm", "pearl_cm_ft", "pearl_dr_cm", "pearl_dr_cm_ft"),
                base_c=("pearl_cm_ft", "pearl_dr_cm_ft", "mehta_v2_lam0"),
                cont=("mehta_v2", "mehta_v2_lam0", "pearl_cm_ft", "pearl_dr_cm_ft"), out="results_v2.json", suffix="_v2"),
+    # v3 = same methods as v2 on fresh seeds 6-8, plus the held-out shift picked by select_shift
+    "v3": dict(methods={"pearl_cm", "pearl_dr_cm", "mehta_v2"}, seeds=[6, 7, 8], hero="mehta_v2",
+               base_a=("pearl_cm", "pearl_cm_ft", "pearl_dr_cm", "pearl_dr_cm_ft"),
+               base_c=("pearl_cm_ft", "pearl_dr_cm_ft", "mehta_v2_lam0"),
+               cont=("mehta_v2", "mehta_v2_lam0", "pearl_cm_ft", "pearl_dr_cm_ft"), out="results_v3.json", suffix="_v3"),
 }
 SET_LABELS = {"id": "In-distribution goals", "ood_goal": "Out-of-distribution goals",
-              "ood_dyn": "Shifted dynamics (actions rotated 60°)"}
+              "ood_dyn": "Shifted dynamics (actions rotated 60°)",
+              "shift_rot120": "Actions rotated 120°", "shift_invert": "Actions inverted (180°)",
+              "shift_mirror": "Actions mirrored left-right", "shift_wind": "Strong wind (drift 0.06/step)",
+              "shift_ood_rot60": "New goals + actions rotated 60°"}
 
 
 def load(results: Path, env: str, seeds, methods):
@@ -88,6 +96,17 @@ def build(results: Path, seeds, ver="v1"):
     out["n_runs"] = {"point_goal": len(pg), "waypoints": len(wp)}
     if pg:
         out["axis_a"] = axis_a(pg)
+        # oracle reference (an estimate: greedy controller that knows goal and dynamics) and gap closure
+        from .envs import make_task_sets, oracle_return
+        out["oracle"] = {s: round(float(np.mean([np.mean([oracle_return(t) for t in make_task_sets("point_goal", seed=sd).evals[s]])
+                                                  for sd in seeds])), 3) for s in out["axis_a"]}
+        out["closure"] = {}
+        for s, d in out["axis_a"].items():
+            for v, dd in d.items():
+                k0, kmax = "0", max(dd, key=int)
+                gap0 = out["oracle"][s] - dd[k0][0]
+                if gap0 > 1e-9:
+                    out["closure"].setdefault(s, {})[v] = round((dd[kmax][0] - dd[k0][0]) / gap0, 3)
         out["axis_c"] = {}
         for run in pg:
             for v, d in run.get("axis_c", {}).items():
@@ -165,7 +184,7 @@ def figures(out, V):
     plt.rcParams.update({"font.size": 10, "axes.spines.top": False, "axes.spines.right": False,
                          "figure.facecolor": "#fbf8f3", "axes.facecolor": "#fbf8f3"})
     if "axis_a" in out:
-        sets = [s for s in ("id", "ood_goal", "ood_dyn") if s in out["axis_a"]]
+        sets = [s for s in SET_LABELS if s in out["axis_a"]]
         fig, axes = plt.subplots(1, len(sets), figsize=(4.2 * len(sets), 3.4), sharey=False)
         for ax, s in zip(np.atleast_1d(axes), sets):
             for v, d in out["axis_a"][s].items():
@@ -177,7 +196,10 @@ def figures(out, V):
             ax.set_title(SET_LABELS[s]); ax.set_xlabel("post-training gradient steps K")
         np.atleast_1d(axes)[0].set_ylabel("return (higher is better)")
         np.atleast_1d(axes)[-1].legend(frameon=False, fontsize=8)
-        fig.suptitle(f"Point-Goal: return vs. post-training steps (mean ± std over {len(out['seeds'])} seeds)", fontsize=11)
+        for ax, s in zip(np.atleast_1d(axes), sets):
+            if "oracle" in out and s in out["oracle"]:
+                ax.axhline(out["oracle"][s], color="#6b6157", lw=1, ls=":")
+        fig.suptitle(f"Point-Goal: return vs. post-training steps (mean ± std over {len(out['seeds'])} seeds; dotted = oracle)", fontsize=11)
         fig.tight_layout(); fig.savefig(FIGS / f"adaptation{sfx}.png", dpi=150); plt.close(fig)
     if "axis_b" in out:
         d = out["axis_b"]["waypoints"]

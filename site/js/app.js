@@ -79,6 +79,28 @@ drawMethodDiagram();
 demoP.then((demo) => (demo ? initDemo(demo) : emptyNote("#demo .demo", "Demo weights not generated yet: run uv run python -m mehta.export_demo")));
 resultsP.then((res) => (res ? initResults(res) : emptyNote("#chart-a", "No results yet: run uv run python -m mehta.run_all")));
 getJSON("data/results_v2.json").then((res) => (res ? initResults(res, V2_IDS) : emptyNote("#chart-a-v2", "Version 2 confirmatory runs are not finished yet.")));
+getJSON("data/results_v3.json").then((res) => (res ? (initResults(res, V3_IDS), closureTable(res)) : emptyNote("#chart-a-v3", "Version 3 confirmatory runs are not finished yet.")));
+getJSON("data/shift_selection.json").then((sel) => sel && selectionTable(sel));
+
+function selectionTable(sel) {
+  const t = $("#v3-selection");
+  if (!t) return;
+  const L = { shift_rot120: "Actions rotated 120°", shift_invert: "Actions inverted (180°)", shift_mirror: "Actions mirrored left-right",
+              shift_wind: "Strong wind (drift 0.06/step)", shift_ood_rot60: "New goals + actions rotated 60°" };
+  t.innerHTML = `<thead><tr><th>Candidate shift</th><th>PEARL+FT at K=0</th><th>at K=400</th><th>Oracle</th><th>Gap closed</th><th>Eligible</th></tr></thead><tbody>` +
+    Object.entries(sel.rows).map(([k, r]) => `<tr${k === sel.chosen ? ' class="chosen"' : ""}><td>${L[k] || k}${k === sel.chosen ? " <b>← chosen</b>" : ""}</td>` +
+      `<td class="n">${r.return["0"].toFixed(2)}</td><td class="n">${r.return["400"].toFixed(2)}</td><td class="n">${r.oracle.toFixed(2)}</td>` +
+      `<td class="n">${(r.closure * 100).toFixed(0)}%</td><td>${r.eligible ? "yes" : "no"}</td></tr>`).join("") + "</tbody>";
+}
+
+function closureTable(res) {
+  const t = $("#v3-closure");
+  if (!t || !res.closure) return;
+  const vs = ["mehta_v2", "pearl_cm_ft", "pearl_dr_cm_ft"];
+  t.innerHTML = `<thead><tr><th>Tasks</th><th>Oracle</th>${vs.map((v) => `<th>${res.labels[v]}</th>`).join("")}</tr></thead><tbody>` +
+    Object.entries(res.closure).map(([s, d]) => `<tr><td>${res.set_labels[s] || s}</td><td class="n">${res.oracle[s].toFixed(2)}</td>` +
+      vs.map((v) => `<td class="n">${d[v] != null ? (d[v] * 100).toFixed(0) + "%" : "–"}</td>`).join("") + "</tr>").join("") + "</tbody>";
+}
 
 function emptyNote(sel, text) {
   const n = $(sel);
@@ -223,6 +245,7 @@ function initSnapshots(demo) {
 // ---------- results ----------
 const V1_IDS = { a: "#chart-a", legend: "#legend-a", b: "#chart-b", c: "#chart-c", verdicts: "#verdicts", traj: true, train: "#chart-train" };
 const V2_IDS = { a: "#chart-a-v2", legend: "#legend-a-v2", b: "#chart-b-v2", c: "#chart-c-v2", verdicts: "#verdicts-v2" };
+const V3_IDS = { a: "#chart-a-v3", legend: "#legend-a-v3", b: "#chart-b-v3", c: "#chart-c-v3", verdicts: "#verdicts-v3" };
 
 function initResults(res, ids = V1_IDS) {
   const L = res.labels;
@@ -239,7 +262,7 @@ function initResults(res, ids = V1_IDS) {
   const allGroups = [];
   const ca = $(ids.a);
   if (res.axis_a) {
-    for (const s of ["id", "ood_goal", "ood_dyn"]) {
+    for (const s of Object.keys(res.set_labels)) {
       if (!res.axis_a[s]) continue;
       const { groups } = lineChart(ca, toSeries(res.axis_a[s]), { title: res.set_labels[s], xName: "K", xLabel: "post-training steps K", xTicks: [0, 100, 200, 400] });
       allGroups.push(groups);
