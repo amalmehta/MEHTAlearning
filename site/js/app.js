@@ -236,7 +236,7 @@ function initResults(res) {
   if (res.axis_a) {
     for (const s of ["id", "ood_goal", "ood_dyn"]) {
       if (!res.axis_a[s]) continue;
-      const { groups } = lineChart(ca, toSeries(res.axis_a[s]), { title: res.set_labels[s], xName: "K", xLabel: "post-training steps K" });
+      const { groups } = lineChart(ca, toSeries(res.axis_a[s]), { title: res.set_labels[s], xName: "K", xLabel: "post-training steps K", xTicks: [0, 100, 200, 400] });
       allGroups.push(groups);
     }
     const leg = $("#legend-a");
@@ -253,8 +253,8 @@ function initResults(res) {
   }
   // (b)
   if (res.axis_b) {
-    lineChart($("#chart-b"), toSeries(res.axis_b.waypoints), { title: "Waypoints reached (of 3)", xName: "K", xLabel: "post-training steps K", yMin: 0, yMax: 3 });
-    lineChart($("#chart-b"), toSeries(res.axis_b.success), { title: "Success rate (all 3 reached)", xName: "K", xLabel: "post-training steps K", yMin: 0, yMax: 1 });
+    lineChart($("#chart-b"), toSeries(res.axis_b.waypoints), { title: "Waypoints reached (of 3)", xName: "K", xLabel: "post-training steps K", yMin: 0, yMax: 3, xTicks: [0, 100, 200, 400] });
+    lineChart($("#chart-b"), toSeries(res.axis_b.success), { title: "Success rate (all 3 reached)", xName: "K", xLabel: "post-training steps K", yMin: 0, yMax: 1, xTicks: [0, 100, 200, 400] });
   } else emptyNote("#chart-b", "No Point-Waypoints results yet.");
   // (c)
   if (res.axis_c && Object.keys(res.axis_c).length) {
@@ -278,7 +278,7 @@ function initResults(res) {
     const by = {};
     for (const [m, d] of Object.entries(curves)) by[m] = d;
     lineChart($("#chart-train"), toSeries(by), { title: env === "point_goal" ? "Point-Goal" : "Point-Waypoints (waypoints reached)", xName: "iteration", xLabel: "meta-training iteration",
-      xTicks: [0, 50, 100, 150, 200].filter((t) => t <= Math.max(...Object.keys(Object.values(curves)[0]).map(Number)) + 1) });
+      xTicks: [0, 100, 200, 300].filter((t) => t <= Math.max(...Object.keys(Object.values(curves)[0]).map(Number)) + 1) });
   }
 }
 
