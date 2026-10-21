@@ -24,9 +24,26 @@ class Task:
     angle: float                 # goal angle on the unit circle (radians)
     rotation: float = 0.0        # action rotation in radians (dynamics shift)
     name: str = ""
+    gain: float = 1.0            # action gain (training-time perturbation only)
+    drift: tuple = (0.0, 0.0)    # constant displacement per step (training-time perturbation only)
 
     def as_dict(self):
         return {"angle": self.angle, "rotation": self.rotation, "name": self.name}
+
+
+def augment(task: Task, rng: np.random.Generator) -> Task:
+    """Random dynamics perturbation used during meta-training (MEHTA v2's inner
+    loop, PEARL-DR's data). Deliberately a different family from the test shifts
+    (held-out goals, 60-degree action rotation): gain in [0.5, 1.5] and a constant
+    drift of up to 0.03 per step (30% of the max step) in a random direction."""
+    phi, r = rng.uniform(0, 2 * np.pi), rng.uniform(0, 0.03)
+    return Task(task.angle, task.rotation, task.name + "+aug", float(rng.uniform(0.5, 1.5)),
+                (float(r * np.cos(phi)), float(r * np.sin(phi))))
+
+
+def _move(pos, action, task: Task):
+    a = np.clip(action, -1.0, 1.0) * STEP * task.gain
+    return pos + _rot(a, task.rotation) + np.asarray(task.drift)
 
 
 def _rot(a: np.ndarray, theta: float) -> np.ndarray:
@@ -56,8 +73,7 @@ class PointGoal:
         return self.pos.copy()
 
     def step(self, action: np.ndarray):
-        a = np.clip(action, -1.0, 1.0) * STEP
-        self.pos = self.pos + _rot(a, self.task.rotation)
+        self.pos = _move(self.pos, action, self.task)
         self.t += 1
         r = -float(np.linalg.norm(self.pos - self.goal))
         # (train reward, context/eval reward): identical for the dense env
@@ -70,10 +86,16 @@ class PointWaypoints:
     Waypoint k sits on the unit circle at angle + k * pi/4. The evaluation /
     context reward is SPARSE: +1 the step a waypoint is reached (then the next one
     becomes active), 0 otherwise, max 3 per episode. Following PEARL's sparse
-    point-robot protocol, the critic is meta-trained with a dense shaping reward
-    (-distance to the active waypoint, plus the sparse bonus) while the encoder
-    only ever sees the sparse reward; post-training on test tasks uses ONLY the
-    sparse reward.
+    point-robot protocol, the critic is meta-trained with a shaped reward while
+    the encoder only ever sees the sparse reward; post-training on test tasks
+    uses ONLY the sparse reward.
+
+    Shaping (v2) is potential-based (Ng, Harada & Russell 1999), so it cannot
+    change the optimal policy: r_train = sparse + gamma*Phi(s') - Phi(s), with
+    Phi = -(distance to the active waypoint + chord length * waypoints left after
+    it), and Phi = 0 once all three are reached. v1 used -distance + sparse,
+    whose jump at each waypoint made hovering short of it about as good as
+    finishing; that trap is gone here.
     """
 
     n_way = 3
@@ -100,18 +122,23 @@ class PointWaypoints:
         self.t = 0
         return self._obs()
 
+    def potential(self) -> float:
+        if self.stage >= self.n_way:
+            return 0.0
+        chord = 2 * np.sin(self.spacing / 2)                      # distance between consecutive waypoints
+        d = float(np.linalg.norm(self.pos - self.waypoints[self.stage]))
+        return -(d + chord * (self.n_way - 1 - self.stage))
+
     def step(self, action: np.ndarray):
-        a = np.clip(action, -1.0, 1.0) * STEP
-        self.pos = self.pos + _rot(a, self.task.rotation)
+        phi0 = self.potential()
+        self.pos = _move(self.pos, action, self.task)
         self.t += 1
-        sparse, dense = 0.0, 0.0
-        if self.stage < self.n_way:
-            d = float(np.linalg.norm(self.pos - self.waypoints[self.stage]))
-            dense = -d
-            if d <= GOAL_RADIUS:
-                sparse = 1.0
-                self.stage += 1
-        return self._obs(), dense + sparse, sparse, self.t >= self.horizon
+        sparse = 0.0
+        if self.stage < self.n_way and np.linalg.norm(self.pos - self.waypoints[self.stage]) <= GOAL_RADIUS:
+            sparse = 1.0
+            self.stage += 1
+        shaped = sparse + self.gamma * self.potential() - phi0
+        return self._obs(), shaped, sparse, self.t >= self.horizon
 
 
 ENVS = {"point_goal": PointGoal, "waypoints": PointWaypoints}

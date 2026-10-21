@@ -4,7 +4,7 @@ import torch
 
 from mehta.adapt import continual_metrics, post_train
 from mehta.agent import Agent, SACConfig, anchor_of, reptile_apply
-from mehta.envs import GOAL_RADIUS, PointGoal, PointWaypoints, Task, make_task_sets
+from mehta.envs import GOAL_RADIUS, PointGoal, PointWaypoints, Task, augment, make_task_sets
 from mehta.nets import Actor, kl_to_standard_normal, product_of_gaussians
 
 
@@ -41,7 +41,6 @@ def test_waypoints_sparse_reward_and_stage_advance():
             _, r, rc, _ = env.step(np.clip(d / 0.1, -1, 1))
             total += rc
             assert rc in (0.0, 1.0)
-            assert r <= rc + 1e-9                               # shaped = -dist + sparse
     assert total == 3.0 and env.stage == 3
 
 
@@ -144,3 +143,41 @@ def test_continual_metrics():
     m = continual_metrics(R)
     assert m["final_mean_return"] == pytest.approx(-2.0)
     assert m["forgetting"] == pytest.approx(((-1 - -3) + (-1.5 - -2)) / 2)
+
+
+# ---- v2 ---------------------------------------------------------------------
+def test_waypoint_shaping_is_potential_based():
+    """r_train - sparse must equal gamma*Phi(s') - Phi(s) on every step."""
+    rng = np.random.default_rng(0)
+    env = PointWaypoints(Task(0.3))
+    env.reset()
+    for _ in range(PointWaypoints.horizon):
+        phi0 = env.potential()
+        _, r, rc, _ = env.step(rng.uniform(-1, 1, 2))
+        assert r - rc == pytest.approx(env.gamma * env.potential() - phi0)
+
+
+def test_waypoint_shaping_has_no_hover_trap():
+    """Reaching a waypoint must not lower the potential (v1's bug)."""
+    env = PointWaypoints(Task(0.0))
+    env.reset()
+    env.pos = env.waypoints[0] + np.array([0.0, -GOAL_RADIUS - 0.05])
+    before = env.potential()
+    env.step(np.array([0.0, 1.0]))                     # step into the first waypoint's radius
+    assert env.stage == 1 and env.potential() > before
+
+
+def test_augment_is_a_different_family_from_test_shifts():
+    rng = np.random.default_rng(0)
+    for _ in range(200):
+        t = augment(Task(1.0), rng)
+        assert 0.5 <= t.gain <= 1.5 and np.hypot(*t.drift) <= 0.03 + 1e-12
+        assert t.rotation == 0.0 and t.angle == 1.0      # never rotates actions or moves the goal
+
+
+def test_gain_and_drift_change_dynamics():
+    env = PointGoal(Task(0.0, gain=0.5, drift=(0.0, 0.01)))
+    env.reset()
+    o, *_ = env.step(np.array([1.0, 0.0]))
+    assert np.allclose(o, [0.05, 0.01])
+
