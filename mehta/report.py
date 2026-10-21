@@ -1,6 +1,6 @@
 """Aggregate per-seed results into site/data/results.json and README figures.
 
-  uv run python -m mehta.report [--results results] [--seeds 0 1 2]
+  uv run python -m mehta.report [--version v1|v2] [--results results] [--seeds ...]
 """
 from __future__ import annotations
 
@@ -23,20 +23,35 @@ FIGS = ROOT / "docs" / "img"
 LABELS = {
     "mehta": "MEHTA", "mehta_short": "MEHTA, short inner loop", "mehta_lam0": "MEHTA, no proximal term",
     "pearl": "PEARL alone", "pearl_ft": "PEARL + naive fine-tune", "maml": "MAML (first-order)",
+    "mehta_v2": "MEHTA v2", "mehta_v2_lam0": "MEHTA v2, no proximal term",
+    "pearl_cm": "PEARL alone (compute-matched)", "pearl_cm_ft": "PEARL + fine-tune (compute-matched)",
+    "pearl_dr_cm": "PEARL-DR alone", "pearl_dr_cm_ft": "PEARL-DR + fine-tune",
 }
 COLORS = {
     "mehta": "#c2410c", "mehta_short": "#f59e0b", "mehta_lam0": "#e8875a",
     "pearl": "#1d4ed8", "pearl_ft": "#60a5fa", "maml": "#15803d",
+    "mehta_v2": "#9a3412", "mehta_v2_lam0": "#fb923c",
+    "pearl_cm": "#1e3a8a", "pearl_cm_ft": "#3b82f6", "pearl_dr_cm": "#0e7490", "pearl_dr_cm_ft": "#22d3ee",
+}
+# v1 = the published pilot (seeds 0-2); v2 = the revised method on fresh seeds 3-5
+VERSIONS = {
+    "v1": dict(methods={"pearl", "mehta", "mehta_short", "maml"}, seeds=[0, 1, 2], hero="mehta",
+               base_a=("pearl", "pearl_ft", "maml", "mehta_short"), base_c=("pearl", "pearl_ft", "maml", "mehta_lam0"),
+               cont=("mehta", "mehta_lam0", "pearl_ft", "maml", "pearl"), out="results.json", suffix=""),
+    "v2": dict(methods={"pearl_cm", "pearl_dr_cm", "mehta_v2"}, seeds=[3, 4, 5], hero="mehta_v2",
+               base_a=("pearl_cm", "pearl_cm_ft", "pearl_dr_cm", "pearl_dr_cm_ft"),
+               base_c=("pearl_cm_ft", "pearl_dr_cm_ft", "mehta_v2_lam0"),
+               cont=("mehta_v2", "mehta_v2_lam0", "pearl_cm_ft", "pearl_dr_cm_ft"), out="results_v2.json", suffix="_v2"),
 }
 SET_LABELS = {"id": "In-distribution goals", "ood_goal": "Out-of-distribution goals",
               "ood_dyn": "Shifted dynamics (actions rotated 60°)"}
 
 
-def load(results: Path, env: str, seeds):
+def load(results: Path, env: str, seeds, methods):
     runs = []
     for f in sorted((results / env).glob("*_s*.json")):
-        seed = int(f.stem.rsplit("_s", 1)[1])
-        if seed in seeds:
+        method, seed = f.stem.rsplit("_s", 1)
+        if int(seed) in seeds and method in methods:
             runs.append(json.loads(f.read_text()))
     return runs
 
@@ -66,9 +81,10 @@ def verdict(a, b):
     return "better" if gap > 0 else "worse"
 
 
-def build(results: Path, seeds):
-    out = {"seeds": list(seeds), "labels": LABELS, "colors": COLORS, "set_labels": SET_LABELS}
-    pg, wp = load(results, "point_goal", seeds), load(results, "waypoints", seeds)
+def build(results: Path, seeds, ver="v1"):
+    V = VERSIONS[ver]
+    out = {"version": ver, "seeds": list(seeds), "labels": LABELS, "colors": COLORS, "set_labels": SET_LABELS, "hero": V["hero"]}
+    pg, wp = load(results, "point_goal", seeds, V["methods"]), load(results, "waypoints", seeds, V["methods"])
     out["n_runs"] = {"point_goal": len(pg), "waypoints": len(wp)}
     if pg:
         out["axis_a"] = axis_a(pg)
@@ -90,13 +106,14 @@ def build(results: Path, seeds):
             for h in run["train"]["history"]:
                 curves.setdefault(run["method"], {}).setdefault(h["iter"], []).append(h["val_return"])
         out["train_curves"][env] = {m: {it: mean_std(v) for it, v in sorted(d.items())} for m, d in curves.items()}
-        out.setdefault("compute", {})[env] = {r["method"]: {"grad_steps": r["train"]["grad_steps"], "wall_sec": r["wall_sec"]} for r in runs if r["seed"] == min(seeds)}
-    out["verdicts"] = verdicts(out)
+        out.setdefault("compute", {})[env] = {r["method"]: {"grad_steps": r["train"]["grad_steps"], "sample_grads": r["train"].get("sample_grads"),
+                                                            "wall_sec": r["wall_sec"]} for r in runs if r["seed"] == min(seeds)}
+    out["verdicts"] = verdicts(out, V)
     # recorded rollouts (seed 0): first 3 tasks, K = 0 and the last checkpoint
     out["traj"] = {}
     for env, runs in (("point_goal", pg), ("waypoints", wp)):
         for run in runs:
-            if run["seed"] != 0:
+            if run["seed"] != min(seeds):
                 continue
             for v, sets in run["traj"].items():
                 for s, tasks in sets.items():
@@ -108,38 +125,42 @@ def build(results: Path, seeds):
     return out
 
 
-def verdicts(out):
-    v = []
+def verdicts(out, V):
+    """Hero method vs each baseline at the largest K. The key "mehta" holds the
+    hero's numbers (MEHTA in v1, MEHTA v2 in v2), so the site renders both."""
+    h, v = V["hero"], []
     a = out.get("axis_a", {})
     for s, d in a.items():
-        if "mehta" not in d:
+        if h not in d:
             continue
-        kmax = max(d["mehta"], key=int)
-        for b in ("pearl", "pearl_ft", "maml", "mehta_short"):
+        kmax = max(d[h], key=int)
+        for b in V["base_a"]:
             if b in d:
-                v.append({"axis": "a", "set": s, "K": kmax, "vs": b, "mehta": d["mehta"][kmax], "other": d[b][kmax],
-                          "verdict": verdict(d["mehta"][kmax], d[b][kmax])})
+                v.append({"axis": "a", "set": s, "K": kmax, "vs": b, "mehta": d[h][kmax], "other": d[b][kmax],
+                          "verdict": verdict(d[h][kmax], d[b][kmax])})
     if "axis_b" in out:
-        d = out["axis_b"]["waypoints"]
-        kmax = max(d["mehta"], key=int) if "mehta" in d else None
-        for b in ("pearl", "pearl_ft", "maml", "mehta_short"):
-            if kmax and b in d:
-                v.append({"axis": "b", "set": "waypoints", "K": kmax, "vs": b, "mehta": d["mehta"][kmax],
-                          "other": d[b][kmax], "verdict": verdict(d["mehta"][kmax], d[b][kmax])})
+        for metric in ("waypoints", "success"):
+            d = out["axis_b"][metric]
+            kmax = max(d[h], key=int) if h in d else None
+            for b in V["base_a"]:
+                if kmax and b in d:
+                    v.append({"axis": "b", "set": "waypoints" if metric == "waypoints" else "waypoints_success", "K": kmax, "vs": b,
+                              "mehta": d[h][kmax], "other": d[b][kmax], "verdict": verdict(d[h][kmax], d[b][kmax])})
     c = out.get("axis_c", {})
-    if "mehta" in c:
-        for b in ("pearl", "pearl_ft", "maml", "mehta_lam0"):
+    if h in c:
+        for b in V["base_c"]:
             if b in c:
-                v.append({"axis": "c", "set": "final", "vs": b, "mehta": c["mehta"]["final"], "other": c[b]["final"],
-                          "verdict": verdict(c["mehta"]["final"], c[b]["final"])})
+                v.append({"axis": "c", "set": "final", "vs": b, "mehta": c[h]["final"], "other": c[b]["final"],
+                          "verdict": verdict(c[h]["final"], c[b]["final"])})
                 # forgetting: lower is better, so compare negated values
                 neg = lambda x: [-x[0], x[1], x[2]]
-                v.append({"axis": "c", "set": "forgetting", "vs": b, "mehta": c["mehta"]["forgetting"], "other": c[b]["forgetting"],
-                          "verdict": verdict(neg(c["mehta"]["forgetting"]), neg(c[b]["forgetting"]))})
+                v.append({"axis": "c", "set": "forgetting", "vs": b, "mehta": c[h]["forgetting"], "other": c[b]["forgetting"],
+                          "verdict": verdict(neg(c[h]["forgetting"]), neg(c[b]["forgetting"]))})
     return v
 
 
-def figures(out):
+def figures(out, V):
+    sfx = V["suffix"]
     FIGS.mkdir(parents=True, exist_ok=True)
     plt.rcParams.update({"font.size": 10, "axes.spines.top": False, "axes.spines.right": False,
                          "figure.facecolor": "#fbf8f3", "axes.facecolor": "#fbf8f3"})
@@ -157,7 +178,7 @@ def figures(out):
         np.atleast_1d(axes)[0].set_ylabel("return (higher is better)")
         np.atleast_1d(axes)[-1].legend(frameon=False, fontsize=8)
         fig.suptitle(f"Point-Goal: return vs. post-training steps (mean ± std over {len(out['seeds'])} seeds)", fontsize=11)
-        fig.tight_layout(); fig.savefig(FIGS / "adaptation.png", dpi=150); plt.close(fig)
+        fig.tight_layout(); fig.savefig(FIGS / f"adaptation{sfx}.png", dpi=150); plt.close(fig)
     if "axis_b" in out:
         d = out["axis_b"]["waypoints"]
         fig, ax = plt.subplots(figsize=(5, 3.4))
@@ -169,10 +190,10 @@ def figures(out):
         ax.set_ylim(0, 3.05); ax.set_xlabel("post-training gradient steps K (sparse reward only)")
         ax.set_ylabel("waypoints reached (of 3)"); ax.legend(frameon=False, fontsize=8)
         ax.set_title("Point-Waypoints: long sparse episodes")
-        fig.tight_layout(); fig.savefig(FIGS / "waypoints.png", dpi=150); plt.close(fig)
+        fig.tight_layout(); fig.savefig(FIGS / f"waypoints{sfx}.png", dpi=150); plt.close(fig)
     if out.get("axis_c"):
         c = out["axis_c"]
-        names = [v for v in ("mehta", "mehta_lam0", "pearl_ft", "maml", "pearl") if v in c]
+        names = [v for v in V["cont"] if v in c]
         fig, axes = plt.subplots(1, 2, figsize=(8.5, 3.2))
         for ax, key, title in ((axes[0], "final", "final mean return (higher is better)"),
                                (axes[1], "forgetting", "forgetting (lower is better)")):
@@ -181,20 +202,22 @@ def figures(out):
             ax.set_title(title, fontsize=10); ax.invert_yaxis()
         axes[1].set_yticklabels([])
         fig.suptitle("Continual post-training over 5 out-of-distribution tasks", fontsize=11)
-        fig.tight_layout(); fig.savefig(FIGS / "continual.png", dpi=150); plt.close(fig)
+        fig.tight_layout(); fig.savefig(FIGS / f"continual{sfx}.png", dpi=150); plt.close(fig)
 
 
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--results", default=str(RESULTS))
-    ap.add_argument("--seeds", type=int, nargs="+", default=[0, 1, 2])
+    ap.add_argument("--version", default="v1", choices=list(VERSIONS))
+    ap.add_argument("--seeds", type=int, nargs="+")
     a = ap.parse_args()
-    out = build(Path(a.results), a.seeds)
+    V = VERSIONS[a.version]
+    out = build(Path(a.results), a.seeds or V["seeds"], a.version)
     SITE_DATA.mkdir(parents=True, exist_ok=True)
-    (SITE_DATA / "results.json").write_text(json.dumps(out))
-    figures(out)
+    (SITE_DATA / V["out"]).write_text(json.dumps(out))
+    figures(out, V)
     for v in out["verdicts"]:
-        print(f"axis {v['axis']} {v['set']:>9} MEHTA vs {LABELS[v['vs']]:<26} {v['mehta'][0]:8.3f}±{v['mehta'][1]:.3f} vs "
+        print(f"axis {v['axis']} {v['set']:>17} {LABELS[V['hero']]} vs {LABELS[v['vs']]:<26} {v['mehta'][0]:8.3f}±{v['mehta'][1]:.3f} vs "
               f"{v['other'][0]:8.3f}±{v['other'][1]:.3f} -> {v['verdict']}")
 
 
