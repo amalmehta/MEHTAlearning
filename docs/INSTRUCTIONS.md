@@ -32,6 +32,22 @@ Rebuild only the aggregates and figures from existing results:
 uv run python -m mehta.report
 ```
 
+## Physics shift curves (sim-to-real readiness)
+
+```bash
+uv run python -m mehta.run_all --version shift --seeds 9 10 11
+```
+
+This trains `pearl_phys`, `mehta_phys` and `maml_phys` with physics domain randomization on both environments, then runs `mehta.shift_eval`. It loads each full checkpoint and writes `results/shift/`, `site/data/shift.json` and `docs/img/shift_curves.png`. To evaluate checkpoints that already exist, or only rebuild the figure:
+
+```bash
+uv run python -m mehta.shift_eval --methods pearl_phys mehta_phys maml_phys --seeds 9 10 11
+```
+
+```bash
+uv run python -m mehta.shift_eval --report-only
+```
+
 ## Tests
 
 ```bash

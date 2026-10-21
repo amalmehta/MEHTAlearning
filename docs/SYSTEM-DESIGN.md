@@ -92,9 +92,20 @@ No database, no accounts, no secrets, no user data. The site sets one
 
 `mehta/select_shift.py` trains compute-matched PEARL on dev seed 100 and fine-tunes it on five held-out shifts (`envs.SHIFTS`). It picks the one with the lowest gap closure, (R400 − R0) / (oracle − R0), among shifts at least 30% short of the oracle. `envs.oracle_return` is a greedy controller that knows the goal and dynamics, used as a reference estimate. MEHTA is never evaluated during selection. The rule was committed before the run. The selected shift (mirrored actions) and the earlier sets were then evaluated once on seeds 6–8 (`run_all --version v3 --sets ...`). `report.py` adds per-set oracle values and gap closure. Shift tasks use their own RNG (3000 + seed), so earlier task draws are unchanged; this is checked by a test.
 
+## Physics randomization and shift curves (sim-to-real readiness)
+
+`mehta/randomize.py` wraps one environment instance with fixed `Physics` (mass, friction, actuator gain, observation-noise std, action delay). `Randomized(Env, seed, physics=None)` stands in for an env class, so `meta_train`, `adapt.TaskState` and `post_train` use it unchanged. With `physics=None`, every env it builds draws fresh physics from the training range. The seed determines both the physics draws and the noise, and a test checks this.
+
+- Point envs: the wrapper is the actuator. It runs a point mass with viscous friction (`v ← (1−d)v + d·(gain/friction)·a`, `d = min(1, friction/mass)`) and gives the base env VMAX = 3 headroom, so the wrapper's velocity is what moves the point. At nominal values it reproduces the unwrapped env exactly (tested).
+- MuJoCo envs (`env.model` with `body_mass`, `body_inertia`, `geom_friction`, `actuator_gear`): those arrays are scaled from nominal values stored on first wrap, so re-wrapping doesn't compound. No MuJoCo task exists in the repo yet; a stand-in model tests this path.
+- Delay is a FIFO queue of clipped commands, zero-filled at reset. Noise touches only `noisy_obs_dims` (position for Point-Waypoints, not the stage one-hot). Rewards always come from the true state.
+- Training methods `pearl_phys`, `mehta_phys` and `maml_phys` (`train.METHODS`) are `pearl_cm`, `mehta_v2` and `maml` with every episode, and MEHTA's inner loop, on randomized physics. The physics stream has its own seed (7000 + seed).
+- Evaluation (`mehta/shift_eval.py`): shift magnitude s scales every parameter's deviation from nominal (s = 1 is the edge of the training range). Each held-out task has a fixed sign per log parameter (RNG 5000 + seed). For each magnitude it post-trains to K ∈ {0, 100, 400} from the full checkpoint (`results/models/*_full.pt`, written by every `experiments.run`). The adaptation RNG depends only on (seed, s), so all methods see the same draws. Outputs: `results/shift/`, `site/data/shift.json`, `docs/img/shift_curves.png`.
+
 ## Testing
 
 - `tests/test_core.py`: environment dynamics, rewards, horizon and splits; product-of-Gaussians correctness and permutation invariance; KL at the prior; the Reptile update arithmetic; that cloning never mutates the meta-init; that the proximal term keeps weights closer to the anchor; that PEARL-alone post-training leaves weights unchanged; continual metrics.
+- `tests/test_randomize.py`: same seed → same physics and noisy observations (both envs); nominal physics = unwrapped env; delay, mass, friction and noise effects; shift magnitudes inside/outside the training range; the MuJoCo adapter on a stand-in model; checkpoint round-trip; a phys method trains through the wrapper.
 - `tests/test_export.py`: runs `site/js/model.js` in Node on a PyTorch parity fixture (actions and posterior).
 - Manual review checklist: `docs/INSTRUCTIONS.md`.
 

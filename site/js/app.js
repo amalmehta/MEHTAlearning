@@ -81,6 +81,38 @@ resultsP.then((res) => (res ? initResults(res) : emptyNote("#chart-a", "No resul
 getJSON("data/results_v2.json").then((res) => (res ? initResults(res, V2_IDS) : emptyNote("#chart-a-v2", "Version 2 confirmatory runs are not finished yet.")));
 getJSON("data/results_v3.json").then((res) => (res ? (initResults(res, V3_IDS), closureTable(res)) : emptyNote("#chart-a-v3", "Version 3 confirmatory runs are not finished yet.")));
 getJSON("data/shift_selection.json").then((sel) => sel && selectionTable(sel));
+getJSON("data/shift.json").then((sh) => (sh ? initShift(sh) : emptyNote("#chart-s2r", "Shift-curve runs are not finished yet: run uv run python -m mehta.run_all --version shift --seeds 9 10 11")));
+
+function initShift(sh) {
+  const pt = $("#s2r-params");
+  const names = { mass: "Mass", friction: "Friction", gain: "Actuator gain", obs_noise: "Observation noise (std)", delay: "Action delay (steps)" };
+  const at = (k, s) => { const [nom, lo, hi, kind] = sh.params[k]; return kind === "log" ? `×${((lo / nom) ** s).toFixed(2)} or ×${((hi / nom) ** s).toFixed(2)}` : kind === "lin" ? (nom + s * (hi - nom)).toFixed(2) : Math.round(nom + s * (hi - nom)); };
+  pt.innerHTML = `<thead><tr><th>Parameter</th><th>Nominal</th><th>Training range</th><th>Test at s = 2</th><th>Test at s = 3</th></tr></thead><tbody>` +
+    Object.entries(sh.params).map(([k, [nom, lo, hi]]) => `<tr><td>${names[k] || k}</td><td class="n">${nom}</td><td class="n">${lo} – ${hi}</td><td class="n">${at(k, 2)}</td><td class="n">${at(k, 3)}</td></tr>`).join("") + "</tbody>";
+  const order = ["mehta_phys", "pearl_phys_ft", "pearl_phys", "maml_phys"];
+  const kmax = String(Math.max(...sh.ckpt));
+  const hidden = new Set(), allGroups = [];
+  for (const [env, byV] of Object.entries(sh.curves)) {
+    for (const K of ["0", kmax]) {
+      const series = order.filter((v) => byV[v]).map((v) => ({ key: v, label: sh.labels[v],
+        points: Object.keys(byV[v]).sort((a, b) => a - b).map((s) => [Number(s), ...byV[v][s][K]]) }));
+      const { groups } = lineChart($("#chart-s2r"), series, { title: `${sh.env_labels[env]}, ${K === "0" ? "before post-training (K=0)" : `after K=${K} steps`}`,
+        xName: "s", xLabel: "shift magnitude s", xTicks: sh.magnitudes, shadeTo: sh.train_edge, shadeLabel: "training range" });
+      allGroups.push(groups);
+    }
+  }
+  const leg = $("#legend-s2r");
+  for (const v of order.filter((v) => Object.values(sh.curves).some((d) => d[v]))) {
+    const b = document.createElement("button");
+    b.innerHTML = `<span class="dot c-${v}"></span>${sh.labels[v]}`;
+    b.onclick = () => {
+      hidden.has(v) ? hidden.delete(v) : hidden.add(v);
+      b.classList.toggle("off", hidden.has(v));
+      allGroups.forEach((g) => g[v] && (g[v].style.display = hidden.has(v) ? "none" : ""));
+    };
+    leg.appendChild(b);
+  }
+}
 
 function selectionTable(sel) {
   const t = $("#v3-selection");

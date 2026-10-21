@@ -13,12 +13,15 @@ MEHTAlearning/
 │   ├── rollout.py            Episode collection, z sampling
 │   ├── train.py              Meta-training for pearl / mehta / mehta_short / maml
 │   ├── adapt.py              Post-training protocol and the continual sequence
+│   ├── randomize.py          Physics domain-randomization wrapper and held-out shifts
+│   ├── shift_eval.py         Checkpoints → return vs. shift magnitude, figure, site/data/shift.json
 │   ├── experiments.py        One (env, method, seed) run → results JSON
 │   ├── run_all.py            Every run, in parallel; then report + export (one command)
 │   ├── report.py             Aggregates, verdicts, README figures, site/data/results.json
 │   └── export_demo.py        Seed-0 weights and latent explorer → site/data/demo.json
 ├── tests/
 │   ├── test_core.py          Envs, PEARL math, MEHTA pieces, metrics
+│   ├── test_randomize.py     Wrapper determinism, physics effects, shifts, checkpoints
 │   └── test_export.py        JS demo model vs PyTorch (needs Node)
 ├── results/                  Confirmatory runs (seeds 0–2) as JSON; models/ and logs/ are git-ignored
 ├── site/                     The website (GitHub Pages serves this folder)
@@ -26,7 +29,7 @@ MEHTAlearning/
 │   ├── js/app.js             Demo, charts, rollouts, latent explorer, theme
 │   ├── js/charts.js          Small SVG line and bar charts
 │   ├── js/model.js           JS mirror of the env, MLP and encoder
-│   └── data/                 results.json, demo.json (generated)
+│   └── data/                 results*.json, shift.json, demo.json (generated)
 ├── docs/
 │   ├── INSTRUCTIONS.md       Setup, run, use, manual review checklist
 │   ├── SYSTEM-DESIGN.md      Architecture, flows, decisions, testing, limits

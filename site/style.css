@@ -21,6 +21,7 @@
   --c-pearl_cm_ft: #3b82f6;
   --c-pearl_dr_cm: #0e7490;
   --c-pearl_dr_cm_ft: #22b8d4;
+  --c-pearl_phys: #1e3a8a; --c-pearl_phys_ft: #3b82f6; --c-mehta_phys: #9a3412; --c-maml_phys: #15803d;
   --serif: "Source Serif 4", Georgia, serif;
   --sans: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   --ease: cubic-bezier(.2, .7, .2, 1);
@@ -33,6 +34,7 @@
     --c-mehta: #f0895a; --c-mehta_short: #f2b63d; --c-mehta_lam0: #f5b394;
     --c-pearl: #6f9cf5; --c-pearl_ft: #a7c3fa; --c-maml: #4cc27a;
     --c-mehta_v2: #ff6b35; --c-mehta_v2_lam0: #fdba74; --c-pearl_cm: #93b4fb; --c-pearl_cm_ft: #c7d8fd; --c-pearl_dr_cm: #2fc4d9; --c-pearl_dr_cm_ft: #8be6f2;
+    --c-pearl_phys: #93b4fb; --c-pearl_phys_ft: #c7d8fd; --c-mehta_phys: #ff6b35; --c-maml_phys: #4cc27a;
     color-scheme: dark;
   }
 }
@@ -42,6 +44,7 @@
   --c-mehta: #f0895a; --c-mehta_short: #f2b63d; --c-mehta_lam0: #f5b394;
   --c-pearl: #6f9cf5; --c-pearl_ft: #a7c3fa; --c-maml: #4cc27a;
   --c-mehta_v2: #ff6b35; --c-mehta_v2_lam0: #fdba74; --c-pearl_cm: #93b4fb; --c-pearl_cm_ft: #c7d8fd; --c-pearl_dr_cm: #2fc4d9; --c-pearl_dr_cm_ft: #8be6f2;
+    --c-pearl_phys: #93b4fb; --c-pearl_phys_ft: #c7d8fd; --c-mehta_phys: #ff6b35; --c-maml_phys: #4cc27a;
   color-scheme: dark;
 }
 
@@ -121,6 +124,8 @@ figcaption { font: 13px var(--sans); color: var(--muted); margin-top: 6px; displ
 .c-mehta_v2 { background: var(--c-mehta_v2); } .c-mehta_v2_lam0 { background: var(--c-mehta_v2_lam0); }
 .c-pearl_cm { background: var(--c-pearl_cm); } .c-pearl_cm_ft { background: var(--c-pearl_cm_ft); }
 .c-pearl_dr_cm { background: var(--c-pearl_dr_cm); } .c-pearl_dr_cm_ft { background: var(--c-pearl_dr_cm_ft); }
+.c-pearl_phys { background: var(--c-pearl_phys); } .c-pearl_phys_ft { background: var(--c-pearl_phys_ft); }
+.c-mehta_phys { background: var(--c-mehta_phys); } .c-maml_phys { background: var(--c-maml_phys); }
 .c-pearl { background: var(--c-pearl); } .c-pearl_ft { background: var(--c-pearl_ft); } .c-maml { background: var(--c-maml); }
 
 /* ---- method ---- */
@@ -154,6 +159,7 @@ td { border-bottom: 1px solid var(--rule); padding: 9px 10px 9px 0; vertical-ali
 .chart svg { width: 100%; height: auto; display: block; overflow: visible; }
 .chart text { font: 10.5px var(--sans); fill: var(--muted); }
 .chart .grid { stroke: var(--rule); stroke-width: 1; }
+.chart .shade { fill: var(--muted); opacity: .08; }
 .chart .series path.line { fill: none; stroke-width: 2; transition: opacity .15s; }
 .chart .series path.band { opacity: .15; transition: opacity .15s; }
 .chart .series circle { transition: r .12s; }

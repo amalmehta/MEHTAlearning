@@ -33,7 +33,7 @@ export const hideTip = () => tip().classList.remove("show");
 
 /**
  * series: [{key, label, points: [[x, mean, std], ...]}]
- * opts: {title, xLabel, yLabel, yMin, yMax, logX}
+ * opts: {title, xLabel, yLabel, yMin, yMax, logX, shadeTo, shadeLabel}
  */
 export function lineChart(container, series, opts = {}) {
   const box = document.createElement("div");
@@ -51,6 +51,10 @@ export function lineChart(container, series, opts = {}) {
   const x0 = Math.min(...xs), x1 = Math.max(...xs);
   const sx = (x) => m.l + ((x - x0) / (x1 - x0 || 1)) * (W - m.l - m.r);
   const sy = (y) => H - m.b - ((y - y0) / (y1 - y0 || 1)) * (H - m.t - m.b);
+  if (opts.shadeTo != null) {
+    el("rect", { x: sx(x0), y: m.t, width: sx(opts.shadeTo) - sx(x0), height: H - m.t - m.b, class: "shade" }, svg);
+    if (opts.shadeLabel) el("text", { x: (sx(x0) + sx(opts.shadeTo)) / 2, y: m.t + 10, "text-anchor": "middle" }, svg).textContent = opts.shadeLabel;
+  }
   for (const t of niceTicks(y0, y1)) {
     el("line", { x1: m.l, x2: W - m.r, y1: sy(t), y2: sy(t), class: "grid" }, svg);
     el("text", { x: m.l - 5, y: sy(t) + 3.5, "text-anchor": "end" }, svg).textContent = fmt(t);

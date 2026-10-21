@@ -19,7 +19,7 @@
 <header class="top">
   <a class="brand" href="#"><img src="favicon.svg" alt="" width="22" height="22"> MEHTA Learning</a>
   <nav>
-    <a href="#demo">Demo</a><a href="#method">Method</a><a href="#experiments">Experiments</a><a href="#v2">Version 2</a><a href="#v3">Version 3</a><a href="#roadmap">Roadmap</a>
+    <a href="#demo">Demo</a><a href="#method">Method</a><a href="#experiments">Experiments</a><a href="#v2">Version 2</a><a href="#v3">Version 3</a><a href="#sim2real">Sim-to-real</a><a href="#roadmap">Roadmap</a>
     <a href="https://github.com/amalmehta/MEHTAlearning">Code</a>
     <button id="theme" class="icon-btn" aria-label="Toggle dark mode" title="Toggle dark mode">◐</button>
   </nav>
@@ -252,6 +252,22 @@
   <div class="chart-row" id="chart-b-v3"></div>
   <div class="chart-row" id="chart-c-v3"></div>
   <div class="table-wrap"><table id="verdicts-v3" class="verdicts"></table></div>
+</section>
+
+<section id="sim2real">
+  <h2>Sim-to-real readiness: physics randomization and shift curves</h2>
+  <p>A policy that will leave the simulator has to survive physics it never saw. This harness trains with <b>domain randomization</b> and then measures how adaptation degrades as the test physics moves away from the training range. It is a wrapper (<code>mehta/randomize.py</code>), so the same code drives Point-Goal, Point-Waypoints and any MuJoCo task that exposes its model.</p>
+  <div class="table-wrap"><table id="s2r-params"></table></div>
+  <ul>
+    <li><b>Training:</b> every training episode draws new physics from the ranges above (log-uniform for mass, friction and gain). The physics stays fixed within one task's context, so the latent has something consistent to infer. MEHTA-DR's inner loop adapts on these draws too.</li>
+    <li><b>Evaluation:</b> held-out goals at shift magnitude <i>s</i>. At <i>s</i> = 1 every parameter sits at the edge of its training range, and <i>s</i> &gt; 1 is outside it (<i>s</i> = 3: mass ×0.51 or ×1.95, noise 0.06, 3 steps of delay). Each task has a fixed random direction of shift, so only the size changes along the curve.</li>
+    <li><b>Same seed, same physics:</b> a test checks that the wrapper builds identical parameters and noise for the same seed, and that nominal physics reproduces the unwrapped environment exactly.</li>
+  </ul>
+  <h3>Shift curves on fresh seeds 9–11</h3>
+  <div id="s2r-summary"></div>
+  <div class="chart-row" id="chart-s2r"></div>
+  <div class="legend" id="legend-s2r"></div>
+  <p class="note"><b>What this does and doesn't show.</b> These are 2-D point masses with a simple viscous-friction model, not a robot. A flat curve here is a necessary check, not evidence of sim-to-real transfer. Still missing for a real robot: a MuJoCo or GPU-simulated task (sim-to-sim across two simulators), contact-rich dynamics, safety limits on the post-trained policy, and real rollouts.</p>
 </section>
 
 <section id="roadmap">
