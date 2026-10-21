@@ -1,0 +1,68 @@
+{
+ "rule": "Pick v3's held-out shift on the dev seed, using ONLY the PEARL baseline.\n\nRule (pre-registered in MEHTAlearning.md before this ran): fine-tune\ncompute-matched PEARL (pearl_cm_ft) on each candidate shift; gap closure =\n(R(400) - R(0)) / (oracle - R(0)); pick the lowest closure among candidates whose\nK=400 return is still at least 30% of the oracle gap short. MEHTA is never\nevaluated here.\n\n  uv run python -m mehta.select_shift [--seed 100]\n",
+ "method": "pearl_cm_ft",
+ "lam": 0.5,
+ "rows": {
+  "shift_rot120": {
+   "return": {
+    "0": -23.219632720947267,
+    "100": -13.017174530029298,
+    "200": -13.75465145111084,
+    "400": -16.057126808166505
+   },
+   "oracle": -3.718568266805897,
+   "closure": 0.36728794623617006,
+   "shortfall_at_400": 0.63271205376383,
+   "eligible": true
+  },
+  "shift_invert": {
+   "return": {
+    "0": -38.13911476135254,
+    "100": -39.51504707336426,
+    "200": -31.24861087799072,
+    "400": -22.896205520629884
+   },
+   "oracle": -3.8589810484679825,
+   "closure": 0.44465722824743364,
+   "shortfall_at_400": 0.5553427717525663,
+   "eligible": true
+  },
+  "shift_mirror": {
+   "return": {
+    "0": -31.462102127075195,
+    "100": -31.400418281555176,
+    "200": -31.191413116455077,
+    "400": -25.675109100341796
+   },
+   "oracle": -3.858981048467984,
+   "closure": 0.2096499526359139,
+   "shortfall_at_400": 0.7903500473640861,
+   "eligible": true
+  },
+  "shift_wind": {
+   "return": {
+    "0": -5.090958786010742,
+    "100": -4.541470241546631,
+    "200": -4.45036826133728,
+    "400": -4.285188007354736
+   },
+   "oracle": -2.8331588134531662,
+   "closure": 0.35688315548310084,
+   "shortfall_at_400": 0.6431168445168992,
+   "eligible": true
+  },
+  "shift_ood_rot60": {
+   "return": {
+    "0": -16.408165550231935,
+    "100": -15.165308666229247,
+    "200": -14.371102714538575,
+    "400": -13.324135971069335
+   },
+   "oracle": -3.709571001559574,
+   "closure": 0.24286385137676794,
+   "shortfall_at_400": 0.7571361486232321,
+   "eligible": true
+  }
+ },
+ "chosen": "shift_mirror"
+}
