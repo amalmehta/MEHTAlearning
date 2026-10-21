@@ -265,6 +265,27 @@ RESULTS v2 (2026-10-20, diagnosed redesign, fresh seeds 3–5):
   on shifted dynamics. The MAML step is still not supported.
 - Potential-based Waypoints shaping: success 0% → 27–60% for all methods.
 
+PRE-REGISTERED v3 (written 2026-10-21, before any v3 run):
+
+- Goal: a held-out shift where fine-tuning from PEARL's init is clearly too slow.
+- Candidates (all ID goal angles unless noted, never used in training): actions
+  rotated 120°; inverted (180°); mirrored left-right; wind = constant drift 0.06
+  per step (2× the training max) in a random direction per task; OOD goals +
+  60° rotation.
+- Oracle per task: a controller that knows the goal and the dynamics, moving
+  straight at the goal (per-axis clipped); return over 20 steps.
+- Gap closure = (R(K=400) − R(K=0)) / (oracle − R(K=0)).
+- Selection uses ONLY compute-matched PEARL + fine-tune (pearl_cm_ft) on dev
+  seed 100: pick the candidate with the lowest gap closure among those whose
+  K=400 return is still ≥ 30% of the oracle gap short. MEHTA is not evaluated
+  during selection.
+- Confirmation: pearl_cm, pearl_dr_cm, mehta_v2 trained once on fresh seeds 6–8,
+  evaluated on id, ood_goal, ood_dyn and the selected shift, same protocol.
+- H (primary): MEHTA v2 beats BOTH pearl_cm_ft and pearl_dr_cm_ft on the
+  selected shift at K=400 by the spec rule (gap > summed seed std).
+  Secondary: gap closure for each method on that shift.
+- Whatever the result, it is reported; seeds 6–8 are not reused for tuning.
+
 OPEN QUESTIONS / ASSUMPTIONS:
 
 - Assumed SAC v2 (twin Q + automatic entropy) in place of PEARL's original
