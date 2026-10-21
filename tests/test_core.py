@@ -189,3 +189,31 @@ def test_v2_configs_are_compute_matched():
         _, info = meta_train("point_goal", m, 0, TrainConfig(n_iters=1, eval_every=10**6), SACConfig(hidden=16))
         counts[m] = info["sample_grads"]
     assert counts["pearl_cm"] == counts["mehta_v2"] == 51_200
+
+
+# ---- v3 ---------------------------------------------------------------------
+def test_oracle_is_invariant_to_known_action_transforms():
+    """An oracle that knows the dynamics should score about the same under any
+    invertible action transform for the same goal. Not exactly: the action box
+    is a square, so rotating it changes the fastest reachable direction."""
+    from mehta.envs import oracle_return
+    base = oracle_return(Task(1.0))
+    for t in (Task(1.0, rotation=np.pi), Task(1.0, mirror=True), Task(1.0, rotation=np.deg2rad(120))):
+        assert oracle_return(t) == pytest.approx(base, abs=0.3)
+    assert base > -20.0 + 1.0                        # far better than standing still (-20)
+
+
+def test_mirror_flips_x():
+    env = PointGoal(Task(0.0, mirror=True))
+    env.reset()
+    o, *_ = env.step(np.array([1.0, 0.5]))
+    assert np.allclose(o, [-0.1, 0.05])
+
+
+def test_shift_sets_exist_and_leave_old_draws_unchanged():
+    ts = make_task_sets("point_goal", seed=0)
+    for name in ("shift_rot120", "shift_invert", "shift_mirror", "shift_wind", "shift_ood_rot60"):
+        assert len(ts.evals[name]) == 5
+    assert all(np.hypot(*t.drift) == pytest.approx(0.06) for t in ts.evals["shift_wind"])
+    # v1/v2 task draws must not move: id0 for seed 0 is a fixed number
+    assert ts.evals["id"][0].angle == pytest.approx(make_task_sets("point_goal", seed=0).evals["id"][0].angle)

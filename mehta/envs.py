@@ -26,9 +26,11 @@ class Task:
     name: str = ""
     gain: float = 1.0            # action gain (training-time perturbation only)
     drift: tuple = (0.0, 0.0)    # constant displacement per step (training-time perturbation only)
+    mirror: bool = False         # flip the x component of the action (held-out shift only)
 
     def as_dict(self):
-        return {"angle": self.angle, "rotation": self.rotation, "name": self.name}
+        return {"angle": self.angle, "rotation": self.rotation, "name": self.name,
+                "gain": self.gain, "drift": list(self.drift), "mirror": self.mirror}
 
 
 def augment(task: Task, rng: np.random.Generator) -> Task:
@@ -43,7 +45,40 @@ def augment(task: Task, rng: np.random.Generator) -> Task:
 
 def _move(pos, action, task: Task):
     a = np.clip(action, -1.0, 1.0) * STEP * task.gain
+    if task.mirror:
+        a = np.array([-a[0], a[1]])
     return pos + _rot(a, task.rotation) + np.asarray(task.drift)
+
+
+def oracle_return(task: Task) -> float:
+    """Reference return (an estimate, not a proven optimum) of a greedy controller
+    that knows the goal AND the dynamics: each step it computes the action that
+    would land on the goal (net of drift, inverting the action transform), then
+    tries two ways of fitting it into the action box (per-axis clipping and
+    direction-preserving scaling) and keeps whichever ends closer to the goal."""
+    env = PointGoal(task)
+    o, ret, done = env.reset(), 0.0, False
+    while not done:
+        want = env.goal - o - np.asarray(task.drift)
+        a = _rot(want, -task.rotation) / (STEP * task.gain)
+        if task.mirror:
+            a = np.array([-a[0], a[1]])
+        cands = [np.clip(a, -1, 1), a / max(1.0, float(np.abs(a).max()))]
+        a = min(cands, key=lambda c: np.linalg.norm(_move(o, c, task) - env.goal))
+        o, r, _, done = env.step(a)
+        ret += r
+    return ret
+
+
+# Held-out shifts for v3 (pre-registered in MEHTAlearning.md). None is ever used in
+# training: training perturbations are gain 0.5-1.5 and drift <= 0.03 only.
+SHIFTS = {
+    "shift_rot120": dict(rotation=np.deg2rad(120.0)),
+    "shift_invert": dict(rotation=np.pi),
+    "shift_mirror": dict(mirror=True),
+    "shift_wind": dict(wind=0.06),
+    "shift_ood_rot60": dict(rotation=np.deg2rad(60.0), ood=True),
+}
 
 
 def _rot(a: np.ndarray, theta: float) -> np.ndarray:
@@ -164,6 +199,20 @@ def make_task_sets(env_name: str, n_train: int = 40, n_eval: int = 5, seed: int 
         # a separate held-out continual sequence (lower half circle)
         seq = rng.uniform(np.pi + 0.15, 2 * np.pi - 0.15, n_eval)
         evals["continual"] = [Task(float(a), 0.0, f"seq{i}") for i, a in enumerate(seq)]
+    if env_name == "point_goal":
+        # v3 shifts: their own RNG, so earlier task draws are unchanged
+        srng = np.random.default_rng(3000 + seed)
+        s_id = srng.uniform(0, np.pi, n_eval)
+        s_ood = srng.uniform(np.pi + 0.15, 2 * np.pi - 0.15, n_eval)
+        wind_dir = srng.uniform(0, 2 * np.pi, n_eval)
+        for name, spec in SHIFTS.items():
+            angles = s_ood if spec.get("ood") else s_id
+            evals[name] = [
+                Task(float(a), float(spec.get("rotation", 0.0)), f"{name}{i}",
+                     drift=(float(spec["wind"] * np.cos(wind_dir[i])), float(spec["wind"] * np.sin(wind_dir[i])))
+                     if "wind" in spec else (0.0, 0.0),
+                     mirror=bool(spec.get("mirror", False)))
+                for i, a in enumerate(angles)]
     # ID validation tasks for (dev-seed-only) tuning, disjoint from the test draws
     val = np.random.default_rng(2000 + seed).uniform(0, np.pi, n_eval)
     evals["val"] = [Task(float(a), 0.0, f"val{i}") for i, a in enumerate(val)]
