@@ -1,0 +1,200 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MEHTA Learning</title>
+<meta name="description" content="MEHTA: PEARL's latent task inference combined with long-horizon first-order MAML for meta-RL post-training. Method, small-scale experiments, and an in-browser demo.">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,600;1,8..60,400&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+<script>
+  // apply the saved theme before first paint (no flash)
+  try { const t = localStorage.getItem("theme"); if (t) document.documentElement.dataset.theme = t; } catch (e) {}
+</script>
+</head>
+<body>
+<header class="top">
+  <a class="brand" href="#"><img src="favicon.svg" alt="" width="22" height="22"> MEHTA Learning</a>
+  <nav>
+    <a href="#demo">Demo</a><a href="#method">Method</a><a href="#experiments">Experiments</a><a href="#roadmap">Roadmap</a>
+    <a href="https://github.com/amalmehta/MEHTAlearning">Code</a>
+    <button id="theme" class="icon-btn" aria-label="Toggle dark mode" title="Toggle dark mode">◐</button>
+  </nav>
+</header>
+
+<main>
+<article>
+<section class="hero">
+  <p class="kicker">Meta-reinforcement learning · research proposal with pilot results</p>
+  <h1>MEHTA: PEARL latents meet long-horizon MAML</h1>
+  <p class="dek">An agent should spot which world it is in from a few steps of experience <em>and</em> keep improving with gradient steps when that world is new to it. PEARL does the first; MAML does the second. MEHTA does both, and is meta-trained for long post-training.</p>
+  <p class="byline">Amal Mehta · October 2026 · <span class="badge">Small-scale pilot: 2-D tasks, 3 seeds, CPU only</span></p>
+</section>
+
+<section class="idea">
+  <div class="idea-grid">
+    <div><h4>PEARL</h4><p>A latent variable <i>z</i>, inferred from recent transitions, tells the actor which environment it is in. Adaptation is zero-gradient and fast, but it can only pick among worlds it saw during training.</p></div>
+    <div><h4>MAML</h4><p>One meta-gradient from many environments learns an initialization that improves quickly under ordinary gradient steps. It keeps improving on new worlds, but needs data and steps for every task.</p></div>
+    <div class="accent"><h4>MEHTA</h4><p>Infer <i>z</i> first, then post-train from a MAML-learned initialization for many steps. The meta-gradient is taken through a <b>long</b> inner loop, and a proximal pull to the initialization limits forgetting across a <b>long</b> sequence of tasks.</p></div>
+  </div>
+</section>
+
+<section id="demo">
+  <h2>Try it</h2>
+  <p>Click anywhere to pick a goal direction (the goal sits on the unit circle). The agent never sees the goal. It explores for two episodes (faint lines), infers <i>z</i> from the rewards it gets, then commits (bold line). Training goals lay only on the <span class="swatch train"></span>upper half circle, so goals below the axis are <b>new worlds</b>.</p>
+  <div class="demo">
+    <div class="demo-stage">
+      <canvas id="demo-canvas" width="520" height="520" aria-label="Point navigation demo: click to place a goal"></canvas>
+      <div class="demo-hint" id="demo-hint">Click to pick a goal direction</div>
+    </div>
+    <div class="demo-side">
+      <div class="seg" role="group" aria-label="Model">
+        <button data-model="mehta" class="on">MEHTA</button><button data-model="pearl">PEARL</button>
+      </div>
+      <label class="check"><input type="checkbox" id="demo-rot"> Shift dynamics (rotate actions 60°)</label>
+      <div class="readout">
+        <div><span class="lbl">Return of the committed episode</span><span id="demo-ret" class="num">–</span></div>
+        <div><span class="lbl">Best possible (straight to the goal)</span><span id="demo-opt" class="num">–</span></div>
+      </div>
+      <h5>Inferred latent <i>z</i> (mean ± std per dimension)</h5>
+      <svg id="demo-latent" viewBox="0 0 260 120" role="img" aria-label="Posterior over the latent"></svg>
+      <p class="fine">Runs in your browser on the seed-0 meta-trained weights. This is zero-shot latent inference only; post-training is shown below.</p>
+    </div>
+  </div>
+
+  <h3>Post-training on a new world</h3>
+  <p>For three held-out goals on the lower half circle, these are the real adapted policies after <i>K</i> post-training gradient steps (recorded during the seed-0 run, replayed here).</p>
+  <div class="snap-controls">
+    <div class="seg" role="group" aria-label="Task" id="snap-task"></div>
+    <label class="slider">K = <b id="snap-k-label">0</b><input type="range" id="snap-k" min="0" max="2" step="1" value="0"></label>
+  </div>
+  <div class="snap-row">
+    <figure><canvas id="snap-mehta" width="300" height="300"></canvas><figcaption><span class="dot c-mehta"></span>MEHTA · return <b id="snap-mehta-ret">–</b></figcaption></figure>
+    <figure><canvas id="snap-pearl_ft" width="300" height="300"></canvas><figcaption><span class="dot c-pearl_ft"></span>PEARL + naive fine-tune · return <b id="snap-pearl_ft-ret">–</b></figcaption></figure>
+  </div>
+</section>
+
+<section id="method">
+  <h2>Method</h2>
+  <p>MEHTA stands for <b>M</b>eta-gradient + <b>E</b>mbedded <b>H</b>idden-<b>T</b>ask <b>A</b>daptation. It keeps PEARL's machinery whole <a class="cite" href="#ref-pearl">[2]</a>: a permutation-invariant encoder maps each transition (<i>s, a, r, s′</i>) to a Gaussian factor; their product is the posterior <i>q(z | c)</i>; a soft actor-critic <a class="cite" href="#ref-sac">[5]</a> conditions both actor and critics on <i>z</i>. To that it adds a first-order MAML <a class="cite" href="#ref-maml">[1]</a> meta-update of the actor/critic initialization, in Reptile form <a class="cite" href="#ref-reptile">[3]</a>, taken through a long inner loop with an iMAML-style proximal term <a class="cite" href="#ref-imaml">[4]</a>.</p>
+
+  <figure class="diagram" id="method-diagram" aria-label="MEHTA training and post-training loop"></figure>
+
+  <div class="algo">
+<pre><b>Meta-training</b> (each iteration)
+  collect episodes on 5 training tasks: z ~ prior, then z ~ q(z | c)
+  repeat 75×  <span class="cm"># PEARL step</span>
+     sample 4 tasks; z ~ q(z | c) with reparameterization
+     SAC critic loss + 0.001·KL(q ‖ N(0, I)) → critics, encoder
+     SAC actor loss with z detached           → actor
+  every 2nd iteration  <span class="cm"># long-horizon MAML step (new)</span>
+     for 2 tasks i:  θᵢ ← θ;  z = mean q(z | cᵢ)
+        repeat K_inner = 50×:  θᵢ ← θᵢ − α∇[ SAC(θᵢ; z, test-time reward) + λ/2‖θᵢ − θ‖² ]
+     θ ← θ + β · meanᵢ(θᵢ − θ)
+
+<b>Post-training</b> on a new task (test time)
+  explore 2 episodes → infer z                      <span class="cm"># PEARL: K = 0</span>
+  for k = 1..K: every 10 steps collect an episode; re-infer z from all context
+               one SAC step on this task's data + λ/2‖θ − θ_meta‖²
+</pre>
+  </div>
+
+  <h3>What is new, and what is not</h3>
+  <p>Combining a task latent with gradient adaptation is not new in itself. CAVIA <a class="cite" href="#ref-cavia">[6]</a> adapts context parameters by gradient descent, and MAESN <a class="cite" href="#ref-maesn">[7]</a> meta-learns a latent exploration space alongside a MAML policy. MEHTA's specific combination is: (1) an <i>amortized, probabilistic, off-policy</i> PEARL posterior for zero-shot task inference, (2) a meta-gradient through a <i>long</i> first-order inner loop, motivated by the short-horizon bias of truncated meta-optimization <a class="cite" href="#ref-shorthorizon">[8]</a>, and (3) proximal post-training that serves as both the iMAML regularizer and a guard against forgetting in a <i>continual</i> task sequence. Whether this combination pays off is an empirical question, and the pilot below is the first test.</p>
+  <p class="note"><b>Implementation choices, not taken from the papers:</b> SAC v2 (twin Q-functions, learned temperature) instead of PEARL's original value-network SAC; the MAML baseline is first-order and off-policy (a SAC inner loop), not the original policy-gradient MAML; KL weight 0.001 instead of PEARL's 0.1 (PEARL used reward scale 100, which shrinks the KL's relative weight about 10⁴×; at scale 1 the 0.1 setting held the encoder near the prior); initial SAC temperature 0.1; hidden width 64; 300 iterations × 75 updates. These were picked or checked on a separate development seed and not swept.</p>
+</section>
+
+<section id="experiments">
+  <h2>Experiments</h2>
+  <h3>Setup</h3>
+  <div class="table-wrap">
+  <table class="ladder">
+    <thead><tr><th>Level</th><th>Environment</th><th>Why</th><th>Status</th></tr></thead>
+    <tbody>
+      <tr><td>1</td><td><b>Point-Goal</b>: 2-D point, origin start, actions ±0.1, horizon 20, dense reward −distance. Train goals on the upper unit half circle.</td><td>Modeled on PEARL's sparse point robot; seconds per episode on a CPU, so 3 seeds × 5 methods fit the budget.</td><td><span class="pill done">this page</span></td></tr>
+      <tr><td>1</td><td><b>Point-Waypoints</b>: visit 3 waypoints in order, horizon 60, reward +1 per waypoint (sparse). The critic gets dense shaping during meta-training only, as in PEARL's sparse protocol.</td><td>A long-horizon, sparse-reward test.</td><td><span class="pill done">this page</span></td></tr>
+      <tr><td>2</td><td>HalfCheetah-Vel/Dir (MuJoCo), Meta-World ML1/ML10 <a class="cite" href="#ref-metaworld">[9]</a></td><td>Standard meta-RL suites with published PEARL/MAML numbers.</td><td><span class="pill plan">planned</span></td></tr>
+      <tr><td>3</td><td>GPU-parallel robot sims (Isaac Gym <a class="cite" href="#ref-isaac">[10]</a>) with domain randomization <a class="cite" href="#ref-dr">[11]</a><a class="cite" href="#ref-dynrand">[12]</a></td><td>High fidelity; sim-to-sim gaps as a sim-to-real proxy.</td><td><span class="pill plan">planned</span></td></tr>
+      <tr><td>4</td><td>Real robot</td><td>Sim-to-real.</td><td><span class="pill plan">planned</span></td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p>Every method uses the same networks, data, post-training protocol and proximal weight λ; one thing changes at a time. <b>Evaluation tasks:</b> 5 in-distribution goals, 5 out-of-distribution goals (lower half circle), and 5 in-distribution goals with <b>shifted dynamics</b> (actions rotated 60°, a stand-in for a sim-to-real mismatch). <b>Rule for "beats":</b> the mean gap must exceed the sum of the two across-seed standard deviations; anything less is reported as no clear difference. Seeds 0–2 were run once, after all choices were fixed on development seed 100.</p>
+
+  <h3>(a) Many-step post-training</h3>
+  <p>Return after <i>K</i> post-training gradient steps, averaged over 5 tasks per seed, mean ± std over seeds. "PEARL alone" receives the same extra context episodes but takes no gradient steps.</p>
+  <div class="chart-row" id="chart-a"></div>
+  <div class="legend" id="legend-a"></div>
+
+  <h3>(b) Long, sparse episodes</h3>
+  <p>Point-Waypoints. Post-training sees only the sparse reward.</p>
+  <div class="chart-row" id="chart-b"></div>
+
+  <h3>(c) Continual post-training</h3>
+  <p>Five new tasks in sequence, 100 steps each, with weights carried over. <b>Forgetting</b> = return on a task right after training on it, minus its return at the end of the sequence.</p>
+  <div class="chart-row" id="chart-c"></div>
+
+  <h3>Verdicts</h3>
+  <p class="fine">Generated from the results file by the rule above, at the largest <i>K</i>.</p>
+  <div class="table-wrap"><table id="verdicts" class="verdicts"></table></div>
+
+  <h3>Recorded rollouts</h3>
+  <p>Deterministic seed-0 episodes on held-out tasks, before (K = 0, dashed) and after (K = max, solid) post-training.</p>
+  <div class="seg" role="group" aria-label="Task set" id="traj-set"></div>
+  <div class="traj-grid" id="traj-grid"></div>
+
+  <h3>Latent-space explorer</h3>
+  <p>The posterior mean of <i>z</i> after every exploration step, for 36 goals around the full circle, projected to 2-D with PCA. Color is goal angle; hollow points are goals never seen in training. Hover a path to highlight it.</p>
+  <div class="seg" role="group" aria-label="Latent model" id="latent-model"></div>
+  <div class="latent-wrap"><svg id="latent-svg" viewBox="0 0 520 380" role="img" aria-label="Latent space"></svg><p class="fine" id="latent-explained"></p></div>
+
+  <h3>Training curves</h3>
+  <p>Validation return (separate in-distribution goals) during meta-training.</p>
+  <div class="chart-row" id="chart-train"></div>
+
+  <h3>Limits of this pilot</h3>
+  <div id="limits"></div>
+</section>
+
+<section id="roadmap">
+  <h2>Roadmap: from point masses to robots</h2>
+  <ol class="roadmap">
+    <li><b>Level 2, standard suites.</b> HalfCheetah-Vel/Dir and Meta-World ML1/ML10 with published PEARL/MAML baselines. More seeds (≥5), compute-matched baselines, and a sweep over K_inner ∈ {5, 20, 50, 200}.</li>
+    <li><b>Level 3, high fidelity.</b> GPU-parallel simulation with domain randomization over masses, friction and latency. Train in one randomized simulator, test on another (sim-to-sim) as the proxy for sim-to-real.</li>
+    <li><b>Level 4, sim to real.</b> Infer <i>z</i> on the robot from a few seconds of data, then run a short, proximally regularized post-training on real rollouts, with safety limits on the post-trained policy.</li>
+  </ol>
+  <p class="note">Everything in this section is a plan. No results above come from these levels.</p>
+</section>
+
+<section id="refs">
+  <h2>References</h2>
+  <ol class="refs">
+    <li id="ref-maml">Finn, Abbeel, Levine. Model-Agnostic Meta-Learning for Fast Adaptation of Deep Networks. 2017. <a href="https://arxiv.org/abs/1703.03400">arXiv:1703.03400</a></li>
+    <li id="ref-pearl">Rakelly, Zhou, Quillen, Finn, Levine. Efficient Off-Policy Meta-Reinforcement Learning via Probabilistic Context Variables. 2019. <a href="https://arxiv.org/abs/1903.08254">arXiv:1903.08254</a></li>
+    <li id="ref-reptile">Nichol, Achiam, Schulman. On First-Order Meta-Learning Algorithms. 2018. <a href="https://arxiv.org/abs/1803.02999">arXiv:1803.02999</a></li>
+    <li id="ref-imaml">Rajeswaran, Finn, Kakade, Levine. Meta-Learning with Implicit Gradients. 2019. <a href="https://arxiv.org/abs/1909.04630">arXiv:1909.04630</a></li>
+    <li id="ref-sac">Haarnoja et al. Soft Actor-Critic Algorithms and Applications. 2018. <a href="https://arxiv.org/abs/1812.05905">arXiv:1812.05905</a></li>
+    <li id="ref-cavia">Zintgraf et al. Fast Context Adaptation via Meta-Learning (CAVIA). 2018. <a href="https://arxiv.org/abs/1810.03642">arXiv:1810.03642</a></li>
+    <li id="ref-maesn">Gupta et al. Meta-Reinforcement Learning of Structured Exploration Strategies (MAESN). 2018. <a href="https://arxiv.org/abs/1802.07245">arXiv:1802.07245</a></li>
+    <li id="ref-shorthorizon">Wu, Ren, Liao, Grosse. Understanding Short-Horizon Bias in Stochastic Meta-Optimization. 2018. <a href="https://arxiv.org/abs/1803.02021">arXiv:1803.02021</a></li>
+    <li id="ref-metaworld">Yu et al. Meta-World: A Benchmark and Evaluation for Multi-Task and Meta Reinforcement Learning. 2019. <a href="https://arxiv.org/abs/1910.10897">arXiv:1910.10897</a></li>
+    <li id="ref-isaac">Makoviychuk et al. Isaac Gym: High Performance GPU-Based Physics Simulation For Robot Learning. 2021. <a href="https://arxiv.org/abs/2108.10470">arXiv:2108.10470</a></li>
+    <li id="ref-dr">Tobin et al. Domain Randomization for Transferring Deep Neural Networks from Simulation to the Real World. 2017. <a href="https://arxiv.org/abs/1703.06907">arXiv:1703.06907</a></li>
+    <li id="ref-dynrand">Peng et al. Sim-to-Real Transfer of Robotic Control with Dynamics Randomization. 2017. <a href="https://arxiv.org/abs/1710.06537">arXiv:1710.06537</a></li>
+    <li id="ref-varibad">Zintgraf et al. VariBAD: A Very Good Method for Bayes-Adaptive Deep RL via Meta-Learning. 2019. <a href="https://arxiv.org/abs/1910.08348">arXiv:1910.08348</a> (related, not compared)</li>
+    <li id="ref-ewc">Kirkpatrick et al. Overcoming Catastrophic Forgetting in Neural Networks. 2016. <a href="https://arxiv.org/abs/1612.00796">arXiv:1612.00796</a> (related, not compared)</li>
+  </ol>
+  <p class="fine">Reference metadata checked against the arXiv API on 2026-10-20.</p>
+</section>
+</article>
+</main>
+
+<a class="feedback" href="https://github.com/amalmehta/MEHTAlearning/issues/new?title=Feedback%3A%20" target="_blank" rel="noopener">Feedback</a>
+<footer><p>MEHTA Learning · code and every number on this page: <a href="https://github.com/amalmehta/MEHTAlearning">github.com/amalmehta/MEHTAlearning</a> · one command regenerates all results.</p></footer>
+<div class="tooltip" id="tooltip" role="tooltip"></div>
+<script type="module" src="js/app.js"></script>
+</body>
+</html>
