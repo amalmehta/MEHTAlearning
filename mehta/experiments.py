@@ -99,9 +99,10 @@ def main():
     ap.add_argument("--method", required=True, choices=list(VARIANTS))
     ap.add_argument("--seed", type=int, required=True)
     ap.add_argument("--out", default=str(RESULTS))
+    ap.add_argument("--sets", nargs="+", help="evaluation sets for axis (a); default per env")
     a = ap.parse_args()
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(message)s", datefmt="%H:%M:%S")
-    run(a.env, a.method, a.seed, out_dir=Path(a.out))
+    run(a.env, a.method, a.seed, sets=a.sets, out_dir=Path(a.out))
 
 
 if __name__ == "__main__":

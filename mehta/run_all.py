@@ -3,6 +3,8 @@
   uv run python -m mehta.run_all              # seeds 0 1 2, all envs and methods
   uv run python -m mehta.run_all --jobs 6     # fewer parallel processes
   uv run python -m mehta.run_all --version v2 --seeds 3 4 5 --methods pearl_cm pearl_dr_cm mehta_v2
+  uv run python -m mehta.run_all --version v3 --seeds 6 7 8 --methods pearl_cm pearl_dr_cm mehta_v2 \
+      --envs point_goal --sets id ood_goal ood_dyn <shift chosen by mehta.select_shift>
 
 Runs are independent processes (one CPU thread each). Existing result files
 are skipped unless --force, so an interrupted run resumes where it stopped.
@@ -26,12 +28,14 @@ def main():
     ap.add_argument("--seeds", type=int, nargs="+", default=[0, 1, 2])
     ap.add_argument("--methods", nargs="+", default=["pearl", "mehta", "mehta_short", "maml"],
                     help="v1: pearl mehta mehta_short maml; v2: pearl_cm pearl_dr_cm mehta_v2")
-    ap.add_argument("--version", default="v1", choices=["v1", "v2"])
+    ap.add_argument("--version", default="v1", choices=["v1", "v2", "v3"])
+    ap.add_argument("--envs", nargs="+", default=ENVS)
+    ap.add_argument("--sets", nargs="+", help="axis (a) evaluation sets, passed to every run")
     ap.add_argument("--jobs", type=int, default=8)
     ap.add_argument("--force", action="store_true")
     a = ap.parse_args()
     (RESULTS / "logs").mkdir(parents=True, exist_ok=True)
-    jobs = [(e, m, s) for s in a.seeds for e in ENVS for m in a.methods
+    jobs = [(e, m, s) for s in a.seeds for e in a.envs for m in a.methods
             if a.force or not (RESULTS / e / f"{m}_s{s}.json").exists()]
     print(f"{len(jobs)} runs, {a.jobs} at a time")
     t0 = time.time()
@@ -40,7 +44,8 @@ def main():
         e, m, s = job
         log = RESULTS / "logs" / f"{e}_{m}_s{s}.log"
         with open(log, "w") as f:
-            rc = subprocess.call([sys.executable, "-m", "mehta.experiments", "--env", e, "--method", m, "--seed", str(s)],
+            rc = subprocess.call([sys.executable, "-m", "mehta.experiments", "--env", e, "--method", m, "--seed", str(s),
+                                  *(["--sets", *a.sets] if a.sets else [])],
                                  stdout=f, stderr=subprocess.STDOUT)
         print(f"[{time.time() - t0:6.0f}s] {e} {m} seed {s}: {'ok' if rc == 0 else f'FAILED (see {log})'}", flush=True)
         return rc
