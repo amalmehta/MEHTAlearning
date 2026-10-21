@@ -243,6 +243,17 @@ Baselines = PEARL, MAML, PEARL + naive fine-tune. Method name = MEHTA.
   >3 seeds, cloud GPU, second-order meta-gradients, LLM/foundation-model
   post-training.
 
+RESULTS (2026-10-20, seeds 0–2, confirmatory):
+
+- Latent methods ≫ first-order MAML without a latent (OOD goals −13.9 ± 1.4 vs −29.6 ± 1.6).
+- MEHTA beats PEARL alone on ID, OOD-goal and OOD-dynamics after post-training.
+- MEHTA vs PEARL + naive fine-tune: no clear difference anywhere. Long vs short
+  inner loop: no clear difference. The novel meta-update is NOT supported at this
+  scale.
+- Continual: MEHTA forgets less than PEARL + fine-tune (−0.40 ± 0.67 vs
+  1.12 ± 0.26), but no-proximal does as well, so the gain is not the proximal term.
+- Point-Waypoints: every method fails (0% success).
+
 OPEN QUESTIONS / ASSUMPTIONS:
 
 - Assumed SAC v2 (twin Q + automatic entropy) in place of PEARL's original
@@ -302,3 +313,4 @@ CHANGELOG:
 - 2026-10-19 — changed meta-instruction: questions mostly as multiple choice (with a box for my own answer); plain-text questions only when a detailed answer is needed, at most two per round
 - 2026-10-20 — added meta-instruction: make the UI/UX buttery smooth (instant response, nothing blocking the main thread, full-frame-rate motion, no flicker or jumps)
 - 2026-10-20 — filled DEFINITIONS AND DEFERRED and OPEN QUESTIONS from the first question rounds
+- 2026-10-20 — built MVP: method, 24 confirmatory runs, website with demo; results recorded (long-horizon MAML step: no measurable gain)

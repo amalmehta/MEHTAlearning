@@ -20,6 +20,8 @@ flowchart LR
 
 **Website:** https://amalmehta.github.io/MEHTAlearning/ · **Status:** small-scale pilot (2-D tasks, 3 seeds, CPU)
 
+**Pilot result:** latent inference plus post-training clearly beats either alone. The new long-horizon MAML meta-update showed **no measurable gain** over plain fine-tuning at this scale. Long sparse episodes failed for every method.
+
 - [Instructions](docs/INSTRUCTIONS.md): setup, reproduce everything with one command, view the site, manual review checklist
 - [System design](docs/SYSTEM-DESIGN.md): architecture, flows, decisions, testing, limits
 - [File structure](docs/FILE-STRUCTURE.md)

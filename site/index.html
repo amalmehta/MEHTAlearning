@@ -32,14 +32,27 @@
   <h1>MEHTA: PEARL latents meet long-horizon MAML</h1>
   <p class="dek">An agent should spot which world it is in from a few steps of experience <em>and</em> keep improving with gradient steps when that world is new to it. PEARL does the first; MAML does the second. MEHTA does both, and is meta-trained for long post-training.</p>
   <p class="byline">Amal Mehta · October 2026 · <span class="badge">Small-scale pilot: 2-D tasks, 3 seeds, CPU only</span></p>
+  <p class="tldr"><b>Short version:</b> latent inference plus post-training clearly beats either alone. The specific new piece, a long-horizon MAML meta-update, showed no measurable gain over plain fine-tuning in this pilot. The next step is testing whether that changes at scale.</p>
 </section>
 
 <section class="idea">
   <div class="idea-grid">
     <div><h4>PEARL</h4><p>A latent variable <i>z</i>, inferred from recent transitions, tells the actor which environment it is in. Adaptation is zero-gradient and fast, but it can only pick among worlds it saw during training.</p></div>
     <div><h4>MAML</h4><p>One meta-gradient from many environments learns an initialization that improves quickly under ordinary gradient steps. It keeps improving on new worlds, but needs data and steps for every task.</p></div>
-    <div class="accent"><h4>MEHTA</h4><p>Infer <i>z</i> first, then post-train from a MAML-learned initialization for many steps. The meta-gradient is taken through a <b>long</b> inner loop, and a proximal pull to the initialization limits forgetting across a <b>long</b> sequence of tasks.</p></div>
+    <div class="accent"><h4>MEHTA</h4><p>Infer <i>z</i> first, then post-train from a MAML-learned initialization for many steps. The meta-gradient is taken through a <b>long</b> inner loop, and a proximal pull to the initialization is meant to limit forgetting across a <b>long</b> sequence of tasks.</p></div>
   </div>
+</section>
+
+<section class="findings">
+  <h2>What the pilot found</h2>
+  <p class="fine">Point-Goal and Point-Waypoints, seeds 0–2, post-training up to K = 400 steps. "Better" means the mean gap exceeds the summed across-seed standard deviations.</p>
+  <ul>
+    <li><b>The latent is what matters most.</b> All latent methods beat first-order MAML without a latent by a wide margin (out-of-distribution goals: MEHTA −13.9 ± 1.4 vs MAML −29.6 ± 1.6). Without task inference, MAML's initialization walks toward the average training goal, which is the wrong way for goals below the axis.</li>
+    <li><b>Post-training helps beyond zero-shot inference.</b> MEHTA beats PEARL alone on all three task sets, most clearly under shifted dynamics (−6.9 ± 0.1 vs −11.7 ± 1.6).</li>
+    <li><b>The long-horizon MAML step did not measurably help.</b> MEHTA vs PEARL + naive fine-tune, which uses the same post-training from a PEARL initialization: no clear difference on any task set. A long vs short inner loop (50 vs 5 steps): also no clear difference. MEHTA's results were more consistent across seeds (e.g. shifted dynamics ±0.06 vs ±0.66), but with 3 seeds that is a hint, not a finding.</li>
+    <li><b>Continual: less forgetting, but not because of the proximal term.</b> MEHTA forgot less than PEARL + naive fine-tune (−0.40 ± 0.67 vs 1.12 ± 0.26). Removing the proximal term did not increase forgetting (−1.11 ± 0.12), so the gain does not come from it.</li>
+    <li><b>Long sparse episodes: a negative result for every method.</b> No method completed the 3-waypoint task on any test goal, and sparse-reward post-training did not fix that.</li>
+  </ul>
 </section>
 
 <section id="demo">
@@ -156,7 +169,14 @@
   <div class="chart-row" id="chart-train"></div>
 
   <h3>Limits of this pilot</h3>
-  <div id="limits"></div>
+  <ul id="limits">
+    <li><b>Tiny tasks.</b> A 2-D point mass with 20–60 step episodes. Nothing here says how MEHTA behaves on high-dimensional control or real robots.</li>
+    <li><b>Three seeds, five tasks per set, one scored episode per task.</b> The score at K = 0 is noisy: the same PEARL model scored −6.9 and −11.7 in two evaluations, depending on its exploration episodes.</li>
+    <li><b>Not compute-matched.</b> Meta-training gradient steps: PEARL 22,500; MEHTA and MAML 37,500 (including inner-loop steps); MEHTA with a short inner loop 24,000.</li>
+    <li><b>Under-trained.</b> Validation return was still improving at iteration 300. CPU time was shared with other heavy workloads, so each run took about 75 minutes.</li>
+    <li><b>Chosen, not tuned.</b> λ = 0.5, β = 0.3, K_inner = 50. A development seed was used only to fix the training failures described in the method note.</li>
+    <li><b>Point-Waypoints needs a better exploration story.</b> Dense shaping during meta-training, as in PEARL's sparse protocol, was not enough at this budget.</li>
+  </ul>
 </section>
 
 <section id="roadmap">

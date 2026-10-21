@@ -132,6 +132,10 @@ def verdicts(out):
             if b in c:
                 v.append({"axis": "c", "set": "final", "vs": b, "mehta": c["mehta"]["final"], "other": c[b]["final"],
                           "verdict": verdict(c["mehta"]["final"], c[b]["final"])})
+                # forgetting: lower is better, so compare negated values
+                neg = lambda x: [-x[0], x[1], x[2]]
+                v.append({"axis": "c", "set": "forgetting", "vs": b, "mehta": c["mehta"]["forgetting"], "other": c[b]["forgetting"],
+                          "verdict": verdict(neg(c["mehta"]["forgetting"]), neg(c[b]["forgetting"]))})
     return v
 
 

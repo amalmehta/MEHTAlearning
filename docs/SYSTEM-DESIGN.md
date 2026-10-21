@@ -92,4 +92,7 @@ No database, no accounts, no secrets, no user data. The site sets one
 - 3 seeds; differences smaller than the across-seed spread are reported as "no clear difference".
 - Baselines are not compute-matched: MEHTA and MAML take extra inner-loop gradient steps during meta-training (counts are in `results.json` under `compute`).
 - Hyperparameters were chosen, not swept.
-- Training ran on a shared, heavily loaded CPU; wall-clock numbers are not benchmarks.
+- Training ran on a shared, heavily loaded CPU (load average 100–280 from other workloads), about 75 min per run; wall-clock numbers are not benchmarks.
+- Under-trained: validation return was still rising at iteration 300.
+- K = 0 scores are noisy: one deterministic episode per task, after stochastic exploration.
+- Point-Waypoints: no method completed the task (negative result).

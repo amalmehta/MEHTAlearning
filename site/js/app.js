@@ -267,7 +267,7 @@ function initResults(res) {
   const f = (x) => `${x[0].toFixed(2)} ± ${x[1].toFixed(2)}`;
   const axisName = { a: "(a) many-step", b: "(b) long sparse", c: "(c) continual" };
   tbl.innerHTML = `<thead><tr><th>Axis</th><th>Tasks</th><th>MEHTA</th><th>vs.</th><th>Other</th><th>Verdict</th></tr></thead>` +
-    `<tbody>${res.verdicts.map((v) => `<tr><td>${axisName[v.axis]}</td><td>${res.set_labels[v.set] || (v.set === "final" ? "final return" : "Point-Waypoints")}${v.K ? `, K=${v.K}` : ""}</td>` +
+    `<tbody>${res.verdicts.map((v) => `<tr><td>${axisName[v.axis]}</td><td>${res.set_labels[v.set] || (v.set === "final" ? "final return" : v.set === "forgetting" ? "forgetting (lower is better)" : "Point-Waypoints")}${v.K ? `, K=${v.K}` : ""}</td>` +
       `<td class="n">${f(v.mehta)}</td><td>${L[v.vs]}</td><td class="n">${f(v.other)}</td>` +
       `<td class="${v.verdict === "better" ? "v-better" : v.verdict === "worse" ? "v-worse" : "v-none"}">${v.verdict === "better" ? "MEHTA better" : v.verdict === "worse" ? "MEHTA worse" : "no clear difference"}</td></tr>`).join("")}</tbody>`;
   // trajectories
