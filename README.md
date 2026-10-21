@@ -25,4 +25,5 @@ flowchart LR
 - [Instructions](docs/INSTRUCTIONS.md): setup, reproduce everything with one command, view the site, manual review checklist
 - [System design](docs/SYSTEM-DESIGN.md): architecture, flows, decisions, testing, limits
 - [File structure](docs/FILE-STRUCTURE.md)
+- [Level-2 plan](docs/LEVEL-2-PLAN.md): HalfCheetah-Vel and Meta-World, compute-matched, cost and where to run
 - [Project spec](MEHTAlearning.md): definitions, decisions and what's deferred

@@ -238,6 +238,7 @@ Baselines = PEARL, MAML, PEARL + naive fine-tune. Method name = MEHTA.
 - Done (MVP): `uv run python -m mehta.run_all` reproduces every result JSON and
   figure; the site shows the method, all results (mean ± std), the three demos,
   and the roadmap; tests pass.
+- Level-2 plan (not yet run): docs/LEVEL-2-PLAN.md.
 - DEFERRED: Meta-World, Isaac Gym / high-fidelity robot sims, domain-randomized
   sim-to-sim and sim-to-real on hardware, compute-matched baselines,
   >3 seeds, cloud GPU, second-order meta-gradients, LLM/foundation-model
@@ -314,3 +315,4 @@ CHANGELOG:
 - 2026-10-20 — added meta-instruction: make the UI/UX buttery smooth (instant response, nothing blocking the main thread, full-frame-rate motion, no flicker or jumps)
 - 2026-10-20 — filled DEFINITIONS AND DEFERRED and OPEN QUESTIONS from the first question rounds
 - 2026-10-20 — built MVP: method, 24 confirmatory runs, website with demo; results recorded (long-horizon MAML step: no measurable gain)
+- 2026-10-20 — added the level-2 plan (HalfCheetah-Vel, Meta-World ML1/ML10; compute-matched; K_inner sweep; 5 seeds; ≈$125–285 on Modal)

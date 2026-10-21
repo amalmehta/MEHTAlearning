@@ -31,6 +31,7 @@ MEHTAlearning/
 │   ├── INSTRUCTIONS.md       Setup, run, use, manual review checklist
 │   ├── SYSTEM-DESIGN.md      Architecture, flows, decisions, testing, limits
 │   ├── FILE-STRUCTURE.md     This file
+│   ├── LEVEL-2-PLAN.md       Next experiments: hypotheses, matrix, budget, gates
 │   └── img/                  README figures (generated)
 ├── .github/workflows/pages.yml  Deploys site/ to GitHub Pages
 └── inputs/                   The original brief image
