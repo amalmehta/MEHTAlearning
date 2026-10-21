@@ -5,20 +5,31 @@
   mehta         yes              yes, K_inner = 50
   mehta_short   yes              yes, K_inner = 5     (ablation: short horizon)
   maml          no               yes, K_inner = 50    (MAML-family baseline)
+
+Version 2 (after the v1 pilot showed no gain from the MAML step):
+  pearl_cm      PEARL with 100 updates/iteration: compute-matched to mehta_v2
+  pearl_dr_cm   pearl_cm + half its training episodes on perturbed dynamics
+                (control: is any gain just from seeing perturbed data?)
+  mehta_v2      PEARL (75 updates/iter) + a MAML step whose inner loop RUNS THE
+                TEST-TIME PROTOCOL (fresh episodes, online collection, test-time
+                reward, proximal pull) on perturbed training tasks, every iteration
+Sample-gradients per iteration: pearl_cm 100x4x128 = 51,200;
+mehta_v2 75x4x128 + 2 tasks x 50 steps x 128 = 51,200.
 """
 from __future__ import annotations
 
 import logging
 import time
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, replace
 
 import numpy as np
 import torch
 
 from .agent import Agent, SACConfig, anchor_of, reptile_apply
 from .buffers import TaskBuffer
-from .envs import ENVS, make_task_sets
+from .envs import ENVS, augment, make_task_sets
 from .rollout import rollout, sample_z
+from .adapt import BATCH, COLLECT_EVERY, TaskState, _step as adapt_step
 
 log = logging.getLogger("mehta")
 
@@ -27,6 +38,9 @@ METHODS = {
     "mehta": dict(use_latent=True, k_inner=50),
     "mehta_short": dict(use_latent=True, k_inner=5),
     "maml": dict(use_latent=False, k_inner=50),
+    "pearl_cm": dict(use_latent=True, k_inner=0, tc=dict(grad_steps=100)),
+    "pearl_dr_cm": dict(use_latent=True, k_inner=0, dr=0.5, tc=dict(grad_steps=100)),
+    "mehta_v2": dict(use_latent=True, k_inner=50, online=True, tc=dict(reptile_every=1, beta=0.5)),
 }
 
 
@@ -54,6 +68,7 @@ def meta_train(env_name: str, method: str, seed: int, tc: TrainConfig, sc: SACCo
     Env = ENVS[env_name]
     tasks = make_task_sets(env_name, seed=seed)
     m = METHODS[method]
+    tc = replace(tc, **m.get("tc", {}))
     agent = Agent(Env.obs_dim, Env.act_dim, sc, use_latent=m["use_latent"])
     n = len(tasks.train)
     rl_bufs = [TaskBuffer(Env.obs_dim, Env.act_dim) for _ in range(n)]
@@ -61,7 +76,10 @@ def meta_train(env_name: str, method: str, seed: int, tc: TrainConfig, sc: SACCo
     prior = torch.zeros(agent.latent_dim)
 
     def collect(i, n_prior, n_post):
-        env = Env(tasks.train[i])
+        task = tasks.train[i]
+        if m.get("dr") and rng.random() < m["dr"]:
+            task = augment(task, rng)
+        env = Env(task)
         enc_bufs[i].clear()
         for _ in range(n_prior):
             p = rollout(env, agent, prior + torch.randn(agent.latent_dim))
@@ -73,7 +91,7 @@ def meta_train(env_name: str, method: str, seed: int, tc: TrainConfig, sc: SACCo
     for i in range(n):
         collect(i, tc.init_eps, 0)
 
-    history, t0, grad_count = [], time.time(), 0
+    history, t0, grad_count, sample_grads = [], time.time(), 0, 0
     for it in range(tc.n_iters):
         for i in rng.choice(n, tc.tasks_per_iter, replace=False):
             collect(i, tc.prior_eps, tc.post_eps)
@@ -85,15 +103,42 @@ def meta_train(env_name: str, method: str, seed: int, tc: TrainConfig, sc: SACCo
             ctx = torch.stack([enc_bufs[i].context(rng, tc.ctx_batch) for i in idx])
             agent.pearl_update(o, a, r, o2, ctx, Env.gamma)
             grad_count += 1
+            sample_grads += tc.meta_batch * tc.batch
 
         if m["k_inner"] and it % tc.reptile_every == 0:
-            grad_count += reptile_step(agent, rl_bufs, enc_bufs, rng, m["k_inner"], tc, Env.gamma)
+            if m.get("online"):
+                k = reptile_step_online(agent, Env, tasks.train, rng, m["k_inner"], tc)
+                grad_count += k; sample_grads += k * BATCH
+            else:
+                k = reptile_step(agent, rl_bufs, enc_bufs, rng, m["k_inner"], tc, Env.gamma)
+                grad_count += k; sample_grads += k * tc.batch
 
         if it % tc.eval_every == 0 or it == tc.n_iters - 1:
             val = quick_eval(agent, Env, tasks.evals["val"])
             history.append({"iter": it, "val_return": val, "grad_steps": grad_count, "sec": round(time.time() - t0, 1)})
             log.info("%s %s seed=%d it=%d val=%.3f (%.0fs)", env_name, method, seed, it, val, time.time() - t0)
-    return agent, {"history": history, "train_cfg": asdict(tc), "sac_cfg": asdict(sc), "grad_steps": grad_count}
+    return agent, {"history": history, "train_cfg": asdict(tc), "sac_cfg": asdict(sc), "grad_steps": grad_count,
+                   "sample_grads": sample_grads}
+
+
+def reptile_step_online(agent, Env, train_tasks, rng, k_inner, tc: TrainConfig) -> int:
+    """MEHTA v2's MAML step: on a perturbed training task, run exactly the
+    test-time post-training protocol (explore, infer z, K_inner proximal SAC steps
+    on freshly collected data with the test-time reward), then move the init
+    toward the mean adapted weights. The latent cannot explain the perturbation,
+    so the gradient steps have a residual to learn to fix."""
+    anchor = anchor_of(agent)
+    adapted = []
+    for i in rng.choice(len(train_tasks), tc.reptile_tasks, replace=False):
+        learner = agent.clone_for_adaptation()
+        st = TaskState(Env, augment(train_tasks[i], rng), learner)
+        for k in range(k_inner):
+            if k % COLLECT_EVERY == 0:
+                st.collect(learner)
+            adapt_step(learner, st, anchor, tc.inner_lam, rng)
+        adapted.append(learner)
+    reptile_apply(agent, adapted, tc.beta)
+    return k_inner * tc.reptile_tasks
 
 
 def reptile_step(agent, rl_bufs, enc_bufs, rng, k_inner, tc: TrainConfig, gamma) -> int:

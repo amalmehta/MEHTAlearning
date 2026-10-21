@@ -181,3 +181,11 @@ def test_gain_and_drift_change_dynamics():
     o, *_ = env.step(np.array([1.0, 0.0]))
     assert np.allclose(o, [0.05, 0.01])
 
+
+def test_v2_configs_are_compute_matched():
+    from mehta.train import TrainConfig, meta_train
+    counts = {}
+    for m in ("pearl_cm", "mehta_v2"):
+        _, info = meta_train("point_goal", m, 0, TrainConfig(n_iters=1, eval_every=10**6), SACConfig(hidden=16))
+        counts[m] = info["sample_grads"]
+    assert counts["pearl_cm"] == counts["mehta_v2"] == 51_200

@@ -32,12 +32,19 @@ VARIANTS = {
     "mehta": {"mehta": (True, LAM)},
     "mehta_short": {"mehta_short": (True, LAM)},
     "maml": {"maml": (True, LAM)},
+    "pearl_cm": {"pearl_cm": (False, 0.0), "pearl_cm_ft": (True, LAM)},
+    "pearl_dr_cm": {"pearl_dr_cm": (False, 0.0), "pearl_dr_cm_ft": (True, LAM)},
+    "mehta_v2": {"mehta_v2": (True, LAM)},
 }
 CONTINUAL_VARIANTS = {
     "pearl": {"pearl": (False, 0.0), "pearl_ft": (True, LAM)},
     "mehta": {"mehta": (True, LAM), "mehta_lam0": (True, 0.0)},
     "maml": {"maml": (True, LAM)},
+    "pearl_cm": {"pearl_cm_ft": (True, LAM)},
+    "pearl_dr_cm": {"pearl_dr_cm_ft": (True, LAM)},
+    "mehta_v2": {"mehta_v2": (True, LAM), "mehta_v2_lam0": (True, 0.0)},
 }
+RECORD_SEEDS = {0, 3}               # seed 0: v1 demo; seed 3: first v2 confirmatory seed
 
 
 def run(env_name: str, method: str, seed: int, sets=None, out_dir: Path = RESULTS) -> dict:
@@ -47,7 +54,7 @@ def run(env_name: str, method: str, seed: int, sets=None, out_dir: Path = RESULT
     agent, info = meta_train(env_name, method, seed, TrainConfig(), SACConfig())
     tasks = make_task_sets(env_name, seed=seed)
     rng = np.random.default_rng(10_000 + seed)
-    record = seed == 0
+    record = seed in RECORD_SEEDS
     res = {"env": env_name, "method": method, "seed": seed, "lam": LAM, "train": info, "axis_a": {}, "traj": {}}
     models = out_dir / "models"
     models.mkdir(parents=True, exist_ok=True)
