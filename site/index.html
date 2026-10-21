@@ -19,7 +19,7 @@
 <header class="top">
   <a class="brand" href="#"><img src="favicon.svg" alt="" width="22" height="22"> MEHTA Learning</a>
   <nav>
-    <a href="#demo">Demo</a><a href="#method">Method</a><a href="#experiments">Experiments</a><a href="#v2">Version 2</a><a href="#roadmap">Roadmap</a>
+    <a href="#demo">Demo</a><a href="#method">Method</a><a href="#experiments">Experiments</a><a href="#v2">Version 2</a><a href="#v3">Version 3</a><a href="#roadmap">Roadmap</a>
     <a href="https://github.com/amalmehta/MEHTAlearning">Code</a>
     <button id="theme" class="icon-btn" aria-label="Toggle dark mode" title="Toggle dark mode">◐</button>
   </nav>
@@ -32,7 +32,7 @@
   <h1>MEHTA: PEARL latents meet long-horizon MAML</h1>
   <p class="dek">An agent should spot which world it is in from a few steps of experience <em>and</em> keep improving with gradient steps when that world is new to it. PEARL does the first; MAML does the second. MEHTA does both, and is meta-trained for long post-training.</p>
   <p class="byline">Amal Mehta · October 2026 · <span class="badge">Small-scale pilot: 2-D tasks, 3 seeds, CPU only</span></p>
-  <p class="tldr"><b>Short version:</b> latent inference plus post-training clearly beats either alone. The specific new piece, a meta-learned initialization for post-training, showed no measurable gain over plain fine-tuning, either in v1 or after a diagnosed redesign (v2, fresh seeds). v2's training fix did make long sparse episodes solvable: from 0% to 27–60% success.</p>
+  <p class="tldr"><b>Short version:</b> latent inference plus post-training clearly beats either alone. The specific new piece, a meta-learned initialization for post-training, showed no measurable gain over plain fine-tuning, either in v1 or after a diagnosed redesign (v2, fresh seeds). v2's training fix did make long sparse episodes solvable: from 0% to 27–60% success. v3 then tested a shift chosen (using the baseline only) to be hard for plain fine-tuning: MEHTA v2 started from a better point but did not adapt faster, and did not beat compute-matched PEARL + fine-tune.</p>
 </section>
 
 <section class="idea">
@@ -222,6 +222,36 @@
   <div class="chart-row" id="chart-b-v2"></div>
   <div class="chart-row" id="chart-c-v2"></div>
   <div class="table-wrap"><table id="verdicts-v2" class="verdicts"></table></div>
+</section>
+
+<section id="v3">
+  <h2>Version 3: a shift where plain fine-tuning is too slow</h2>
+  <p>If fine-tuning from PEARL's initialization is already nearly as good as possible, no initialization can beat it. So v3 looks for a held-out shift where that fine-tuning is clearly too slow. The shift is chosen <b>using only the PEARL baseline</b>, by a rule fixed before any run (<a href="https://github.com/amalmehta/MEHTAlearning/blob/main/MEHTAlearning.md">pre-registered in the spec</a>):</p>
+  <ol>
+    <li>On development seed 100, train compute-matched PEARL and fine-tune it for 400 steps on each candidate shift. None of the candidates is ever used in training.</li>
+    <li>Gap closed = (return at K=400 − return at K=0) ÷ (oracle − return at K=0). The oracle is a greedy controller that knows the goal and the dynamics, an estimate rather than a proven optimum.</li>
+    <li>Pick the candidate with the lowest gap closed, among those still at least 30% short of the oracle. MEHTA is not evaluated during selection.</li>
+  </ol>
+  <div class="table-wrap"><table id="v3-selection"></table></div>
+  <p>Then PEARL (compute-matched), PEARL-DR and MEHTA v2 are each trained once on <b>fresh seeds 6–8</b>. Primary hypothesis: MEHTA v2 beats <i>both</i> fine-tuned baselines on the chosen shift at K=400, by the same rule as before.</p>
+
+  <h3>Results on fresh seeds 6–8</h3>
+  <div id="v3-summary">
+    <ul>
+      <li><b>The pre-registered hypothesis is not supported.</b> On mirrored actions at K=400, MEHTA v2 beats PEARL-DR + fine-tune (−21.9 ± 1.2 vs −24.8 ± 1.2) but shows no clear difference from compute-matched PEARL + fine-tune (−21.9 ± 1.2 vs −23.5 ± 2.6). The hypothesis required beating both.</li>
+      <li><b>Its edge is a better starting point, not faster adaptation.</b> MEHTA v2 starts higher on the mirror shift (K=0: −30.8 vs −34.6 and −36.7), but over 400 steps it closes 33% of the gap to the oracle, against 36% for both baselines. Faster post-training is what the MAML step is supposed to provide, and it doesn't show up.</li>
+      <li><b>It's unstable across seed sets.</b> With actions rotated 60°, MEHTA v2 is now <i>worse</i> than both fine-tuned baselines (−8.4 ± 0.5 vs −6.8 ± 0.6 and −6.5 ± 0.5). On seeds 3–5 it showed no clear difference.</li>
+      <li><b>The shift really was hard.</b> Every method is still about 18–21 return units short of the oracle (≈ −3.9) after 400 steps. So there was room to win, and no initialization we tried used it.</li>
+    </ul>
+    <p class="note"><b>Conclusion after three rounds</b> (v1; diagnosed v2; v3 on a deliberately hard shift, each on fresh seeds): latent inference plus gradient post-training is the useful combination. Training on perturbed dynamics sometimes helps. A meta-learned initialization for post-training (MEHTA's MAML step) has not shown a reliable gain over fine-tuning from PEARL's own initialization in any of these tests. Seeds 0–8 are now all used.</p>
+  </div>
+  <div class="chart-row" id="chart-a-v3"></div>
+  <div class="legend" id="legend-a-v3"></div>
+  <h4 class="sub">Gap to the oracle closed by K=400</h4>
+  <div class="table-wrap"><table id="v3-closure"></table></div>
+  <div class="chart-row" id="chart-b-v3"></div>
+  <div class="chart-row" id="chart-c-v3"></div>
+  <div class="table-wrap"><table id="verdicts-v3" class="verdicts"></table></div>
 </section>
 
 <section id="roadmap">

@@ -88,6 +88,10 @@ No database, no accounts, no secrets, no user data. The site sets one
 
 **Protocol:** changes were checked on dev seed 100, then run once on fresh seeds 3–5 (`run_all --version v2`). The report writes `site/data/results_v2.json` and `docs/img/*_v2.png`. v1 outputs are untouched.
 
+## Version 3 (pre-registered hard shift)
+
+`mehta/select_shift.py` trains compute-matched PEARL on dev seed 100 and fine-tunes it on five held-out shifts (`envs.SHIFTS`). It picks the one with the lowest gap closure, (R400 − R0) / (oracle − R0), among shifts at least 30% short of the oracle. `envs.oracle_return` is a greedy controller that knows the goal and dynamics, used as a reference estimate. MEHTA is never evaluated during selection. The rule was committed before the run. The selected shift (mirrored actions) and the earlier sets were then evaluated once on seeds 6–8 (`run_all --version v3 --sets ...`). `report.py` adds per-set oracle values and gap closure. Shift tasks use their own RNG (3000 + seed), so earlier task draws are unchanged; this is checked by a test.
+
 ## Testing
 
 - `tests/test_core.py`: environment dynamics, rewards, horizon and splits; product-of-Gaussians correctness and permutation invariance; KL at the prior; the Reptile update arithmetic; that cloning never mutates the meta-init; that the proximal term keeps weights closer to the anchor; that PEARL-alone post-training leaves weights unchanged; continual metrics.

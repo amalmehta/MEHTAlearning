@@ -286,6 +286,15 @@ PRE-REGISTERED v3 (written 2026-10-21, before any v3 run):
   Secondary: gap closure for each method on that shift.
 - Whatever the result, it is reported; seeds 6–8 are not reused for tuning.
 
+RESULTS v3 (2026-10-21, pre-registered, fresh seeds 6–8):
+
+- Selection (dev seed 100, PEARL only): mirrored actions, closure 21%, 79% short.
+- H NOT supported: on mirror at K=400, MEHTA v2 −21.9 ± 1.2 beats PEARL-DR + FT
+  (−24.8 ± 1.2) but not compute-matched PEARL + FT (−23.5 ± 2.6).
+- MEHTA v2's edge is its K=0 start (−30.8 vs −34.6); gap closure 33% vs 36%.
+- Rotation 60°: MEHTA v2 now worse than both fine-tuned baselines.
+- Oracle reference (greedy, knows goal and dynamics): about −3.7 to −3.9.
+
 OPEN QUESTIONS / ASSUMPTIONS:
 
 - Assumed SAC v2 (twin Q + automatic entropy) in place of PEARL's original
@@ -348,3 +357,4 @@ CHANGELOG:
 - 2026-10-20 — built MVP: method, 24 confirmatory runs, website with demo; results recorded (long-horizon MAML step: no measurable gain)
 - 2026-10-20 — added the level-2 plan (HalfCheetah-Vel, Meta-World ML1/ML10; compute-matched; K_inner sweep; 5 seeds; ≈$125–285 on Modal)
 - 2026-10-20 — v2: diagnosed v1, redesigned the MAML step, added compute-matched and DR controls, fixed Waypoints shaping; confirmed on fresh seeds 3–5 (MAML step: still no gain; Waypoints: now solvable)
+- 2026-10-21 — v3: pre-registered hard-shift test (mirrored actions, chosen with PEARL only on dev seed), confirmed on seeds 6–8: not supported; corrected v2's ceiling claim using a measured oracle

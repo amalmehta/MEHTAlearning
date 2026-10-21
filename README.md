@@ -20,7 +20,11 @@ flowchart LR
 
 **Website:** https://amalmehta.github.io/MEHTAlearning/ · **Status:** small-scale pilot (2-D tasks, 3 seeds, CPU)
 
-**Pilot result:** latent inference plus post-training clearly beats either alone. The meta-learned initialization (MAML step) showed **no measurable gain** over plain fine-tuning, both in v1 and in a diagnosed v2 redesign confirmed on fresh seeds. v2's potential-based shaping took long sparse episodes from 0% to 27–60% success for every method.
+**Pilot result:** latent inference plus post-training clearly beats either alone. The meta-learned initialization (MAML step) showed **no measurable gain** over plain fine-tuning, both in v1 and in a diagnosed v2 redesign confirmed on fresh seeds. v2's potential-based shaping took long sparse episodes from 0% to 27–60% success for every method. v3 tested a pre-registered hard shift (mirrored actions): MEHTA v2 started better but adapted no faster, and did not beat compute-matched PEARL + fine-tune.
+
+| v3 (fresh seeds 6–8, mirrored actions) |
+|---|
+| ![v3 adaptation](docs/img/adaptation_v3.png) |
 
 | v2 (fresh seeds 3–5) | |
 |---|---|

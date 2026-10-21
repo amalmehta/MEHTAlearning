@@ -283,7 +283,7 @@ function initResults(res, ids = V1_IDS) {
   if (res.axis_b) {
     lineChart($(ids.b), toSeries(res.axis_b.waypoints), { title: "Waypoints reached (of 3)", xName: "K", xLabel: "post-training steps K", yMin: 0, yMax: 3, xTicks: [0, 100, 200, 400] });
     lineChart($(ids.b), toSeries(res.axis_b.success), { title: "Success rate (all 3 reached)", xName: "K", xLabel: "post-training steps K", yMin: 0, yMax: 1, xTicks: [0, 100, 200, 400] });
-  } else emptyNote(ids.b, "No Point-Waypoints results yet.");
+  } else if (ids === V1_IDS) emptyNote(ids.b, "No Point-Waypoints results yet.");
   // (c)
   if (res.axis_c && Object.keys(res.axis_c).length) {
     const vs = order.filter((v) => res.axis_c[v]);

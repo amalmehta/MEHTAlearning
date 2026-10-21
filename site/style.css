@@ -198,3 +198,4 @@ footer { border-top: 1px solid var(--rule); padding: 24px 16px 40px; text-align:
 td.n { font-variant-numeric: tabular-nums; white-space: nowrap; }
 p code, li code { overflow-wrap: anywhere; font-size: .86em; }
 .chosen td { background: var(--accent-soft); }
+h4.sub { font: 600 .9rem var(--sans); color: var(--muted); text-transform: none; letter-spacing: 0; margin: 1.4em 0 .4em; }
