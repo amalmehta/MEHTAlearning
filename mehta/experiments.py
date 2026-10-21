@@ -35,6 +35,9 @@ VARIANTS = {
     "pearl_cm": {"pearl_cm": (False, 0.0), "pearl_cm_ft": (True, LAM)},
     "pearl_dr_cm": {"pearl_dr_cm": (False, 0.0), "pearl_dr_cm_ft": (True, LAM)},
     "mehta_v2": {"mehta_v2": (True, LAM)},
+    "pearl_phys": {"pearl_phys": (False, 0.0), "pearl_phys_ft": (True, LAM)},
+    "mehta_phys": {"mehta_phys": (True, LAM)},
+    "maml_phys": {"maml_phys": (True, LAM)},
 }
 CONTINUAL_VARIANTS = {
     "pearl": {"pearl": (False, 0.0), "pearl_ft": (True, LAM)},
@@ -80,6 +83,8 @@ def run(env_name: str, method: str, seed: int, sets=None, out_dir: Path = RESULT
             R = continual(agent, Env, tasks.evals["continual"], K_CONTINUAL, lam, grad, rng)
             res["axis_c"][vname] = {"R": R, **continual_metrics(R)}
 
+    # full checkpoint (critics included) for later evaluations such as mehta.shift_eval
+    torch.save(agent.checkpoint(), models / f"{env_name}_{method}_s{seed}_full.pt")
     if record:
         torch.save(
             {"actor": agent.actor.state_dict(), "encoder": agent.encoder.state_dict() if agent.encoder else None,
