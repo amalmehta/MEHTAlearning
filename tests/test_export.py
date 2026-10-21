@@ -30,6 +30,7 @@ console.log(JSON.stringify({{ actions, ...post.get() }}));
     out = json.loads(subprocess.check_output(["node", str(script)], text=True))
     fx = json.loads(DEMO.read_text())["parity"]
     # weights are exported rounded to 5 decimals, so allow a small tolerance
-    assert out["actions"] == pytest.approx(fx["action"], abs=2e-3)
+    flat = lambda xs: [v for row in xs for v in row]
+    assert flat(out["actions"]) == pytest.approx(flat(fx["action"]), abs=2e-3)
     assert out["mu"] == pytest.approx(fx["mu"], abs=2e-3)
     assert out["var"] == pytest.approx(fx["var"], rel=1e-2, abs=1e-5)
