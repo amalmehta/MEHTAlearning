@@ -15,6 +15,12 @@
   --c-pearl: #1d4ed8;
   --c-pearl_ft: #5b8fe6;
   --c-maml: #15803d;
+  --c-mehta_v2: #9a3412;
+  --c-mehta_v2_lam0: #fb923c;
+  --c-pearl_cm: #1e3a8a;
+  --c-pearl_cm_ft: #3b82f6;
+  --c-pearl_dr_cm: #0e7490;
+  --c-pearl_dr_cm_ft: #22b8d4;
   --serif: "Source Serif 4", Georgia, serif;
   --sans: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   --ease: cubic-bezier(.2, .7, .2, 1);
@@ -26,6 +32,7 @@
     --accent: #f0895a; --accent-soft: #3a261b; --train: #5a4c3b;
     --c-mehta: #f0895a; --c-mehta_short: #f2b63d; --c-mehta_lam0: #f5b394;
     --c-pearl: #6f9cf5; --c-pearl_ft: #a7c3fa; --c-maml: #4cc27a;
+    --c-mehta_v2: #ff6b35; --c-mehta_v2_lam0: #fdba74; --c-pearl_cm: #93b4fb; --c-pearl_cm_ft: #c7d8fd; --c-pearl_dr_cm: #2fc4d9; --c-pearl_dr_cm_ft: #8be6f2;
     color-scheme: dark;
   }
 }
@@ -34,6 +41,7 @@
   --accent: #f0895a; --accent-soft: #3a261b; --train: #5a4c3b;
   --c-mehta: #f0895a; --c-mehta_short: #f2b63d; --c-mehta_lam0: #f5b394;
   --c-pearl: #6f9cf5; --c-pearl_ft: #a7c3fa; --c-maml: #4cc27a;
+  --c-mehta_v2: #ff6b35; --c-mehta_v2_lam0: #fdba74; --c-pearl_cm: #93b4fb; --c-pearl_cm_ft: #c7d8fd; --c-pearl_dr_cm: #2fc4d9; --c-pearl_dr_cm_ft: #8be6f2;
   color-scheme: dark;
 }
 
@@ -110,6 +118,9 @@ article { max-width: 760px; margin: 0 auto; padding-bottom: 80px; }
 figcaption { font: 13px var(--sans); color: var(--muted); margin-top: 6px; display: flex; align-items: center; gap: 6px; }
 .dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; flex: none; }
 .c-mehta { background: var(--c-mehta); } .c-mehta_short { background: var(--c-mehta_short); } .c-mehta_lam0 { background: var(--c-mehta_lam0); }
+.c-mehta_v2 { background: var(--c-mehta_v2); } .c-mehta_v2_lam0 { background: var(--c-mehta_v2_lam0); }
+.c-pearl_cm { background: var(--c-pearl_cm); } .c-pearl_cm_ft { background: var(--c-pearl_cm_ft); }
+.c-pearl_dr_cm { background: var(--c-pearl_dr_cm); } .c-pearl_dr_cm_ft { background: var(--c-pearl_dr_cm_ft); }
 .c-pearl { background: var(--c-pearl); } .c-pearl_ft { background: var(--c-pearl_ft); } .c-maml { background: var(--c-maml); }
 
 /* ---- method ---- */
@@ -184,3 +195,5 @@ footer { border-top: 1px solid var(--rule); padding: 24px 16px 40px; text-align:
 .tldr { background: var(--card); border: 1px solid var(--rule); border-radius: 12px; padding: 12px 16px; font-size: .98rem; }
 .findings ul, #limits { padding-left: 1.1em; }
 .findings li, #limits li { margin-bottom: .55em; }
+td.n { font-variant-numeric: tabular-nums; white-space: nowrap; }
+p code, li code { overflow-wrap: anywhere; font-size: .86em; }

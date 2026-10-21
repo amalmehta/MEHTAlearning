@@ -80,6 +80,14 @@ No database, no accounts, no secrets, no user data. The site sets one
 - **Exploration vs confirmation.** All choices were made on development seed 100 and validation tasks; seeds 0–2 were run once afterward, and every result is reported.
 - **Static site, data-driven.** No build step, no server cost; JS mirror of the model checked against PyTorch by a test.
 
+## Version 2 (after the v1 pilot)
+
+**Diagnosis of v1** (`mehta/diagnose_v1.py`, seed 0, 150 MAML steps): late in training, the 50-step inner loop improved its own task's return by only +0.39, against +4 to +7 for test-time post-training on new goals. The MAML step was about 7% the size of PEARL's updates over the same span, and two tasks' inner-loop updates had cosine similarity about 0.03. The latent already solved the training tasks, so the meta-update had nothing to learn and was too small to move the initialization.
+
+**Changes** (`train.py`): `mehta_v2` runs the test-time post-training protocol (`adapt.TaskState` / `adapt._step`) as its inner loop, on training tasks with random action gain (0.5–1.5) and drift (≤ 0.03/step) from `envs.augment`. Its MAML step runs every iteration with β = 0.5. Two baselines are added: `pearl_cm`, compute-matched at 51,200 sample-gradients per iteration (asserted in a test), and the control `pearl_dr_cm`, PEARL trained with the same perturbations. Point-Waypoints shaping is now potential-based (Ng, Harada & Russell, ICML 1999). Test shifts (new goals, 60° rotation) are never used in training.
+
+**Protocol:** changes were checked on dev seed 100, then run once on fresh seeds 3–5 (`run_all --version v2`). The report writes `site/data/results_v2.json` and `docs/img/*_v2.png`. v1 outputs are untouched.
+
 ## Testing
 
 - `tests/test_core.py`: environment dynamics, rewards, horizon and splits; product-of-Gaussians correctness and permutation invariance; KL at the prior; the Reptile update arithmetic; that cloning never mutates the meta-init; that the proximal term keeps weights closer to the anchor; that PEARL-alone post-training leaves weights unchanged; continual metrics.

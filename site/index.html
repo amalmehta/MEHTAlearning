@@ -19,7 +19,7 @@
 <header class="top">
   <a class="brand" href="#"><img src="favicon.svg" alt="" width="22" height="22"> MEHTA Learning</a>
   <nav>
-    <a href="#demo">Demo</a><a href="#method">Method</a><a href="#experiments">Experiments</a><a href="#roadmap">Roadmap</a>
+    <a href="#demo">Demo</a><a href="#method">Method</a><a href="#experiments">Experiments</a><a href="#v2">Version 2</a><a href="#roadmap">Roadmap</a>
     <a href="https://github.com/amalmehta/MEHTAlearning">Code</a>
     <button id="theme" class="icon-btn" aria-label="Toggle dark mode" title="Toggle dark mode">◐</button>
   </nav>
@@ -32,7 +32,7 @@
   <h1>MEHTA: PEARL latents meet long-horizon MAML</h1>
   <p class="dek">An agent should spot which world it is in from a few steps of experience <em>and</em> keep improving with gradient steps when that world is new to it. PEARL does the first; MAML does the second. MEHTA does both, and is meta-trained for long post-training.</p>
   <p class="byline">Amal Mehta · October 2026 · <span class="badge">Small-scale pilot: 2-D tasks, 3 seeds, CPU only</span></p>
-  <p class="tldr"><b>Short version:</b> latent inference plus post-training clearly beats either alone. The specific new piece, a long-horizon MAML meta-update, showed no measurable gain over plain fine-tuning in this pilot. The next step is testing whether that changes at scale.</p>
+  <p class="tldr"><b>Short version:</b> latent inference plus post-training clearly beats either alone. The specific new piece, a meta-learned initialization for post-training, showed no measurable gain over plain fine-tuning, either in v1 or after a diagnosed redesign (v2, fresh seeds). v2's training fix did make long sparse episodes solvable: from 0% to 27–60% success.</p>
 </section>
 
 <section class="idea">
@@ -177,6 +177,51 @@
     <li><b>Chosen, not tuned.</b> λ = 0.5, β = 0.3, K_inner = 50. A development seed was used only to fix the training failures described in the method note.</li>
     <li><b>Point-Waypoints needs a better exploration story.</b> Dense shaping during meta-training, as in PEARL's sparse protocol, was not enough at this budget.</li>
   </ul>
+</section>
+
+<section id="v2">
+  <h2>Version 2: why the MAML step did nothing, and a fix</h2>
+  <p>We re-ran v1 MEHTA's meta-training (Point-Goal, seed 0) with instrumentation on all 150 MAML steps. The numbers show why it couldn't help:</p>
+  <div class="table-wrap"><table>
+    <thead><tr><th></th><th>early</th><th>middle</th><th>late training</th></tr></thead>
+    <tbody>
+      <tr><td>Return gained by the 50-step inner loop on its own task</td><td class="n">+2.60</td><td class="n">+1.10</td><td class="n"><b>+0.39</b></td></tr>
+      <tr><td>Size of the MAML step vs. PEARL's updates over the same span</td><td class="n">7.7%</td><td class="n">6.8%</td><td class="n"><b>7.2%</b></td></tr>
+      <tr><td>Cosine similarity between two tasks' inner-loop updates</td><td class="n">−0.02</td><td class="n">0.06</td><td class="n"><b>0.05</b></td></tr>
+    </tbody>
+  </table></div>
+  <ol>
+    <li><b>Nothing to learn.</b> Once the latent identified the training tasks, gradient steps barely improved them (+0.39). On new goals, test-time post-training gains roughly +4 to +7. MAML was practicing adaptation on tasks that didn't need it.</li>
+    <li><b>Too small to matter.</b> The MAML step moved the weights about 7% as much as PEARL's own updates, so the initialization stayed essentially PEARL's.</li>
+    <li><b>The signal averaged away.</b> Updates from different tasks were nearly orthogonal, so averaging them mostly cancelled out.</li>
+  </ol>
+  <p>Raw data: <code>results/diagnostics/v1_inner_loop_s0.json</code> (<code>uv run python -m mehta.diagnose_v1</code>).</p>
+
+  <h3>What changed</h3>
+  <ul>
+    <li><b>MEHTA v2's inner loop runs the test-time protocol</b> (fresh episodes, online collection, test-time reward, proximal pull) on training tasks with <b>random dynamics perturbations</b>: action gain 0.5–1.5 and a constant drift up to 0.03 per step. The latent was never trained on these, so the gradient steps have a residual to fix. Test shifts (new goals, 60° rotation) are a different family and are never seen in training.</li>
+    <li>The MAML step runs every iteration with step size 0.5 (was every 2nd, 0.3).</li>
+    <li><b>Compute-matched baseline:</b> PEARL gets 100 updates per iteration, equal to MEHTA v2's 51,200 sample-gradients per iteration (checked by a test).</li>
+    <li><b>Control, PEARL-DR:</b> PEARL trained with the same perturbations in half its episodes. If it matches MEHTA v2, the gain comes from the perturbed data, not from MAML.</li>
+    <li><b>Waypoints shaping is now potential-based</b> (Ng, Harada &amp; Russell, ICML 1999), which provably leaves the optimal policy unchanged. v1's shaping made hovering just short of a waypoint about as good as reaching it.</li>
+  </ul>
+  <p class="note">These changes were designed <i>after</i> seeing v1 fail, checked on a development seed (100), then run once on <b>fresh seeds 3–5</b> that played no part in any decision. v1's results above are unchanged.</p>
+
+  <h3>Results on fresh seeds 3–5</h3>
+  <div id="v2-summary">
+    <ul>
+      <li><b>The MAML step still doesn't help.</b> MEHTA v2 vs compute-matched PEARL + fine-tune: no clear difference on in-distribution goals, new goals or shifted dynamics. Against the control, PEARL-DR + fine-tune, MEHTA v2 is <b>worse</b> under shifted dynamics (−6.84 ± 0.34 vs −6.32 ± 0.16). The perturbed training data is what helps; the meta-update adds nothing on top.</li>
+      <li><b>In-distribution goals are at the ceiling.</b> Every post-trained method ends at about −4.4 to −4.9, against about −4.5 for a controller that knows the goal, so no method can win there. New goals (about −15) are where the room is, and nothing closes that gap yet.</li>
+      <li><b>Long sparse episodes now work, for every method.</b> With potential-based shaping, waypoint success went from 0% for every v1 method to 27–60% (PEARL-DR 60% ± 28%, PEARL + fine-tune 53% ± 25%, MEHTA v2 27% ± 9%; no clear differences at 3 seeds). This is a fix to the training signal, not a MEHTA result.</li>
+      <li><b>Continual:</b> no clear difference. The proximal term again increased forgetting (0.33 ± 0.58 vs −1.08 ± 0.58 without it).</li>
+    </ul>
+    <p class="note"><b>Where this leaves the idea:</b> in these tasks, gradient post-training from PEARL's own initialization works as well as any meta-learned initialization we tried. Showing MEHTA's value would need tasks where post-training from PEARL's initialization is clearly too slow, and a fresh set of seeds. Seeds 3–5 are now spent and won't be reused for tuning.</p>
+  </div>
+  <div class="chart-row" id="chart-a-v2"></div>
+  <div class="legend" id="legend-a-v2"></div>
+  <div class="chart-row" id="chart-b-v2"></div>
+  <div class="chart-row" id="chart-c-v2"></div>
+  <div class="table-wrap"><table id="verdicts-v2" class="verdicts"></table></div>
 </section>
 
 <section id="roadmap">

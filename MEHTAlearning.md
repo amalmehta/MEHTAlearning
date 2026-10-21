@@ -255,6 +255,16 @@ RESULTS (2026-10-20, seeds 0–2, confirmatory):
   1.12 ± 0.26), but no-proximal does as well, so the gain is not the proximal term.
 - Point-Waypoints: every method fails (0% success).
 
+RESULTS v2 (2026-10-20, diagnosed redesign, fresh seeds 3–5):
+
+- Diagnosis of v1 (results/diagnostics): inner-loop gain on training tasks fell
+  to +0.39 late in training; the MAML step was ~7% the size of PEARL's updates;
+  tasks' inner-loop updates were nearly orthogonal (cos ≈ 0.03).
+- MEHTA v2 (test-protocol inner loop on perturbed tasks): no clear difference vs
+  compute-matched PEARL + fine-tune on any set; worse than the PEARL-DR control
+  on shifted dynamics. The MAML step is still not supported.
+- Potential-based Waypoints shaping: success 0% → 27–60% for all methods.
+
 OPEN QUESTIONS / ASSUMPTIONS:
 
 - Assumed SAC v2 (twin Q + automatic entropy) in place of PEARL's original
@@ -316,3 +326,4 @@ CHANGELOG:
 - 2026-10-20 — filled DEFINITIONS AND DEFERRED and OPEN QUESTIONS from the first question rounds
 - 2026-10-20 — built MVP: method, 24 confirmatory runs, website with demo; results recorded (long-horizon MAML step: no measurable gain)
 - 2026-10-20 — added the level-2 plan (HalfCheetah-Vel, Meta-World ML1/ML10; compute-matched; K_inner sweep; 5 seeds; ≈$125–285 on Modal)
+- 2026-10-20 — v2: diagnosed v1, redesigned the MAML step, added compute-matched and DR controls, fixed Waypoints shaping; confirmed on fresh seeds 3–5 (MAML step: still no gain; Waypoints: now solvable)

@@ -78,6 +78,7 @@ const resultsP = getJSON("data/results.json");
 drawMethodDiagram();
 demoP.then((demo) => (demo ? initDemo(demo) : emptyNote("#demo .demo", "Demo weights not generated yet: run uv run python -m mehta.export_demo")));
 resultsP.then((res) => (res ? initResults(res) : emptyNote("#chart-a", "No results yet: run uv run python -m mehta.run_all")));
+getJSON("data/results_v2.json").then((res) => (res ? initResults(res, V2_IDS) : emptyNote("#chart-a-v2", "Version 2 confirmatory runs are not finished yet.")));
 
 function emptyNote(sel, text) {
   const n = $(sel);
@@ -220,9 +221,13 @@ function initSnapshots(demo) {
 }
 
 // ---------- results ----------
-function initResults(res) {
+const V1_IDS = { a: "#chart-a", legend: "#legend-a", b: "#chart-b", c: "#chart-c", verdicts: "#verdicts", traj: true, train: "#chart-train" };
+const V2_IDS = { a: "#chart-a-v2", legend: "#legend-a-v2", b: "#chart-b-v2", c: "#chart-c-v2", verdicts: "#verdicts-v2" };
+
+function initResults(res, ids = V1_IDS) {
   const L = res.labels;
-  const order = ["mehta", "mehta_short", "pearl_ft", "pearl", "maml", "mehta_lam0"];
+  const hero = L[res.hero || "mehta"];
+  const order = ["mehta_v2", "mehta", "mehta_short", "pearl_dr_cm_ft", "pearl_cm_ft", "pearl_ft", "pearl_dr_cm", "pearl_cm", "pearl", "maml", "mehta_lam0", "mehta_v2_lam0"];
   const toSeries = (byVariant) =>
     order.filter((v) => byVariant[v]).map((v) => ({
       key: v, label: L[v],
@@ -232,14 +237,14 @@ function initResults(res) {
   // (a)
   const hidden = new Set();
   const allGroups = [];
-  const ca = $("#chart-a");
+  const ca = $(ids.a);
   if (res.axis_a) {
     for (const s of ["id", "ood_goal", "ood_dyn"]) {
       if (!res.axis_a[s]) continue;
       const { groups } = lineChart(ca, toSeries(res.axis_a[s]), { title: res.set_labels[s], xName: "K", xLabel: "post-training steps K", xTicks: [0, 100, 200, 400] });
       allGroups.push(groups);
     }
-    const leg = $("#legend-a");
+    const leg = $(ids.legend);
     for (const v of order.filter((v) => res.axis_a.id?.[v])) {
       const b = document.createElement("button");
       b.innerHTML = `<span class="dot c-${v}"></span>${L[v]}`;
@@ -253,23 +258,24 @@ function initResults(res) {
   }
   // (b)
   if (res.axis_b) {
-    lineChart($("#chart-b"), toSeries(res.axis_b.waypoints), { title: "Waypoints reached (of 3)", xName: "K", xLabel: "post-training steps K", yMin: 0, yMax: 3, xTicks: [0, 100, 200, 400] });
-    lineChart($("#chart-b"), toSeries(res.axis_b.success), { title: "Success rate (all 3 reached)", xName: "K", xLabel: "post-training steps K", yMin: 0, yMax: 1, xTicks: [0, 100, 200, 400] });
-  } else emptyNote("#chart-b", "No Point-Waypoints results yet.");
+    lineChart($(ids.b), toSeries(res.axis_b.waypoints), { title: "Waypoints reached (of 3)", xName: "K", xLabel: "post-training steps K", yMin: 0, yMax: 3, xTicks: [0, 100, 200, 400] });
+    lineChart($(ids.b), toSeries(res.axis_b.success), { title: "Success rate (all 3 reached)", xName: "K", xLabel: "post-training steps K", yMin: 0, yMax: 1, xTicks: [0, 100, 200, 400] });
+  } else emptyNote(ids.b, "No Point-Waypoints results yet.");
   // (c)
   if (res.axis_c && Object.keys(res.axis_c).length) {
-    const vs = ["mehta", "mehta_lam0", "pearl_ft", "maml", "pearl"].filter((v) => res.axis_c[v]);
-    barChart($("#chart-c"), vs.map((v) => ({ key: v, label: L[v], mean: res.axis_c[v].final[0], std: res.axis_c[v].final[1] })), { title: "Final mean return over the 5 tasks (higher is better)" });
-    barChart($("#chart-c"), vs.map((v) => ({ key: v, label: L[v], mean: res.axis_c[v].forgetting[0], std: res.axis_c[v].forgetting[1] })), { title: "Forgetting (lower is better)" });
+    const vs = order.filter((v) => res.axis_c[v]);
+    barChart($(ids.c), vs.map((v) => ({ key: v, label: L[v], mean: res.axis_c[v].final[0], std: res.axis_c[v].final[1] })), { title: "Final mean return over the 5 tasks (higher is better)" });
+    barChart($(ids.c), vs.map((v) => ({ key: v, label: L[v], mean: res.axis_c[v].forgetting[0], std: res.axis_c[v].forgetting[1] })), { title: "Forgetting (lower is better)" });
   }
   // verdicts
-  const tbl = $("#verdicts");
+  const tbl = $(ids.verdicts);
   const f = (x) => `${x[0].toFixed(2)} ± ${x[1].toFixed(2)}`;
   const axisName = { a: "(a) many-step", b: "(b) long sparse", c: "(c) continual" };
-  tbl.innerHTML = `<thead><tr><th>Axis</th><th>Tasks</th><th>MEHTA</th><th>vs.</th><th>Other</th><th>Verdict</th></tr></thead>` +
-    `<tbody>${res.verdicts.map((v) => `<tr><td>${axisName[v.axis]}</td><td>${res.set_labels[v.set] || (v.set === "final" ? "final return" : v.set === "forgetting" ? "forgetting (lower is better)" : "Point-Waypoints")}${v.K ? `, K=${v.K}` : ""}</td>` +
+  tbl.innerHTML = `<thead><tr><th>Axis</th><th>Tasks</th><th>${hero}</th><th>vs.</th><th>Other</th><th>Verdict</th></tr></thead>` +
+    `<tbody>${res.verdicts.map((v) => `<tr><td>${axisName[v.axis]}</td><td>${res.set_labels[v.set] || (v.set === "final" ? "final return" : v.set === "forgetting" ? "forgetting (lower is better)" : v.set === "waypoints_success" ? "Point-Waypoints, success rate" : "Point-Waypoints, waypoints reached")}${v.K ? `, K=${v.K}` : ""}</td>` +
       `<td class="n">${f(v.mehta)}</td><td>${L[v.vs]}</td><td class="n">${f(v.other)}</td>` +
-      `<td class="${v.verdict === "better" ? "v-better" : v.verdict === "worse" ? "v-worse" : "v-none"}">${v.verdict === "better" ? "MEHTA better" : v.verdict === "worse" ? "MEHTA worse" : "no clear difference"}</td></tr>`).join("")}</tbody>`;
+      `<td class="${v.verdict === "better" ? "v-better" : v.verdict === "worse" ? "v-worse" : "v-none"}">${v.verdict === "better" ? `${hero} better` : v.verdict === "worse" ? `${hero} worse` : "no clear difference"}</td></tr>`).join("")}</tbody>`;
+  if (!ids.traj) return;
   // trajectories
   initTraj(res);
   // training curves
@@ -277,7 +283,7 @@ function initResults(res) {
     if (!Object.keys(curves).length) continue;
     const by = {};
     for (const [m, d] of Object.entries(curves)) by[m] = d;
-    lineChart($("#chart-train"), toSeries(by), { title: env === "point_goal" ? "Point-Goal" : "Point-Waypoints (waypoints reached)", xName: "iteration", xLabel: "meta-training iteration",
+    lineChart($(ids.train), toSeries(by), { title: env === "point_goal" ? "Point-Goal" : "Point-Waypoints (waypoints reached)", xName: "iteration", xLabel: "meta-training iteration",
       xTicks: [0, 100, 200, 300].filter((t) => t <= Math.max(...Object.keys(Object.values(curves)[0]).map(Number)) + 1) });
   }
 }
