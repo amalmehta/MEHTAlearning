@@ -3,7 +3,7 @@ cloning for an inner loop, a proximal anchor, and the first-order meta-update.""
 from __future__ import annotations
 
 import copy
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass
 
 import numpy as np
 import torch
@@ -138,6 +138,23 @@ class Agent:
             r_hat = self.decoder(torch.cat([f(o2), f(zb)], -1)).squeeze(-1)
             extra = self.cfg.recon_weight * F.mse_loss(r_hat, r.reshape(-1))
         return self.sac_update(f(o), f(a), r.reshape(-1), f(o2), f(zb), gamma, kl=kl, extra=extra)
+
+    NETS = ("actor", "q1", "q2", "q1_t", "q2_t", "encoder")
+
+    def checkpoint(self) -> dict:
+        """Everything post-training needs (critics included), for torch.save."""
+        return {"obs_dim": self.obs_dim, "act_dim": self.act_dim, "use_latent": self.encoder is not None,
+                "cfg": asdict(self.cfg), "log_alpha": float(self.log_alpha),
+                "nets": {n: getattr(self, n).state_dict() for n in self.NETS if getattr(self, n) is not None}}
+
+    @classmethod
+    def from_checkpoint(cls, ck: dict) -> "Agent":
+        ag = cls(ck["obs_dim"], ck["act_dim"], SACConfig(**ck["cfg"]), use_latent=ck["use_latent"])
+        for n, sd in ck["nets"].items():
+            getattr(ag, n).load_state_dict(sd)
+        with torch.no_grad():
+            ag.log_alpha.fill_(ck["log_alpha"])
+        return ag
 
     def snapshot(self) -> dict:
         return {

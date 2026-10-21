@@ -13,6 +13,10 @@ Version 2 (after the v1 pilot showed no gain from the MAML step):
   mehta_v2      PEARL (75 updates/iter) + a MAML step whose inner loop RUNS THE
                 TEST-TIME PROTOCOL (fresh episodes, online collection, test-time
                 reward, proximal pull) on perturbed training tasks, every iteration
+Physics domain randomization (randomize.py): pearl_phys, mehta_phys and
+maml_phys are pearl_cm, mehta_v2 and maml with EVERY training episode (and
+mehta_phys's inner loop) on physics drawn from the training range (mass,
+friction, actuator gain, observation noise, action delay) instead of augment().
 Sample-gradients per iteration: pearl_cm 100x4x128 = 51,200;
 mehta_v2 75x4x128 + 2 tasks x 50 steps x 128 = 51,200.
 """
@@ -28,6 +32,7 @@ import torch
 from .agent import Agent, SACConfig, anchor_of, reptile_apply
 from .buffers import TaskBuffer
 from .envs import ENVS, augment, make_task_sets
+from .randomize import Randomized
 from .rollout import rollout, sample_z
 from .adapt import BATCH, COLLECT_EVERY, TaskState, _step as adapt_step
 
@@ -41,6 +46,9 @@ METHODS = {
     "pearl_cm": dict(use_latent=True, k_inner=0, tc=dict(grad_steps=100)),
     "pearl_dr_cm": dict(use_latent=True, k_inner=0, dr=0.5, tc=dict(grad_steps=100)),
     "mehta_v2": dict(use_latent=True, k_inner=50, online=True, tc=dict(reptile_every=1, beta=0.5)),
+    "pearl_phys": dict(use_latent=True, k_inner=0, phys=True, tc=dict(grad_steps=100)),
+    "mehta_phys": dict(use_latent=True, k_inner=50, online=True, phys=True, tc=dict(reptile_every=1, beta=0.5)),
+    "maml_phys": dict(use_latent=False, k_inner=50, phys=True),
 }
 
 
@@ -74,12 +82,14 @@ def meta_train(env_name: str, method: str, seed: int, tc: TrainConfig, sc: SACCo
     rl_bufs = [TaskBuffer(Env.obs_dim, Env.act_dim) for _ in range(n)]
     enc_bufs = [TaskBuffer(Env.obs_dim, Env.act_dim, 5_000) for _ in range(n)]
     prior = torch.zeros(agent.latent_dim)
+    # physics DR: its own seeded stream, so it never shifts the other methods' RNG draws
+    phys = Randomized(Env, seed=7_000 + seed) if m.get("phys") else None
 
     def collect(i, n_prior, n_post):
         task = tasks.train[i]
         if m.get("dr") and rng.random() < m["dr"]:
             task = augment(task, rng)
-        env = Env(task)
+        env = phys(task) if phys else Env(task)
         enc_bufs[i].clear()
         for _ in range(n_prior):
             p = rollout(env, agent, prior + torch.randn(agent.latent_dim))
@@ -107,7 +117,7 @@ def meta_train(env_name: str, method: str, seed: int, tc: TrainConfig, sc: SACCo
 
         if m["k_inner"] and it % tc.reptile_every == 0:
             if m.get("online"):
-                k = reptile_step_online(agent, Env, tasks.train, rng, m["k_inner"], tc)
+                k = reptile_step_online(agent, Env, tasks.train, rng, m["k_inner"], tc, phys)
                 grad_count += k; sample_grads += k * BATCH
             else:
                 k = reptile_step(agent, rl_bufs, enc_bufs, rng, m["k_inner"], tc, Env.gamma)
@@ -121,17 +131,19 @@ def meta_train(env_name: str, method: str, seed: int, tc: TrainConfig, sc: SACCo
                    "sample_grads": sample_grads}
 
 
-def reptile_step_online(agent, Env, train_tasks, rng, k_inner, tc: TrainConfig) -> int:
+def reptile_step_online(agent, Env, train_tasks, rng, k_inner, tc: TrainConfig, phys=None) -> int:
     """MEHTA v2's MAML step: on a perturbed training task, run exactly the
     test-time post-training protocol (explore, infer z, K_inner proximal SAC steps
     on freshly collected data with the test-time reward), then move the init
     toward the mean adapted weights. The latent cannot explain the perturbation,
-    so the gradient steps have a residual to learn to fix."""
+    so the gradient steps have a residual to learn to fix. With `phys`, the
+    perturbation is a physics draw from the training range instead."""
     anchor = anchor_of(agent)
     adapted = []
     for i in rng.choice(len(train_tasks), tc.reptile_tasks, replace=False):
         learner = agent.clone_for_adaptation()
-        st = TaskState(Env, augment(train_tasks[i], rng), learner)
+        task = train_tasks[i]
+        st = TaskState(phys, task, learner) if phys else TaskState(Env, augment(task, rng), learner)
         for k in range(k_inner):
             if k % COLLECT_EVERY == 0:
                 st.collect(learner)

@@ -135,6 +135,7 @@ class PointWaypoints:
 
     n_way = 3
     obs_dim = 2 + n_way + 1    # position + one-hot of the active stage (3 = done)
+    noisy_obs_dims = 2         # observation noise (randomize.py) touches position only
     act_dim = 2
     horizon = 60
     gamma = 0.95
