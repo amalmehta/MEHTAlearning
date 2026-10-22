@@ -30,6 +30,35 @@ flowchart LR
 |---|---|
 | ![v2 adaptation](docs/img/adaptation_v2.png) | ![v2 waypoints](docs/img/waypoints_v2.png) |
 
+## Meta-World ML1 (level 1.5)
+
+A third environment family sits between the 2-D tasks and the level-2 plan: Meta-World ML1 `reach-v3`, `push-v3` and `pick-place-v3` (`mw_reach`, `mw_push`, `mw_pick_place`). It uses the same `Env(task)` / `make_task_sets` interface as `point_goal` and `waypoints`, so PEARL, MEHTA and MAML run on it with no changes to the algorithms.
+
+- **Tasks:** ML1's goal positions (fixed with benchmark seed 0). There are 40 train goals and 5 validation goals. Each seed draws 5 of ML1's 50 held-out test goals. The goal is hidden from the observation, so it has to be inferred from reward.
+- **Episodes:** 200 steps with γ = 0.99, 10× the point tasks. Push and pick-place are reach → contact or grasp → move, so the final reward depends on actions taken many steps earlier.
+- **Reward:** Meta-World's dense v3 reward, scaled to [0, 1] per step, for both the critic and the context. Success is tracked on the env but not logged yet.
+- **CPU budget:** 100 training iterations (about 350k env steps), with post-training checkpoints at K ∈ {0, 50, 100, 200}.
+
+Install and run:
+
+```bash
+uv sync --group metaworld
+uv run --group metaworld python -m mehta.experiments --env mw_push --method mehta --seed 0
+```
+
+A plain `uv sync` removes the optional group again. Running `uv run --group metaworld pytest` includes the Meta-World tests.
+
+**Seed-0 pipeline check on `mw_push`** (`results/mw_push/*_s0.json`): this shows that every method trains, adapts and evaluates end to end. It is not a result. Mean return on the 5 held-out goals is out of a possible 200:
+
+| Method | K = 0 | K = 200 | Wall-clock |
+|---|---|---|---|
+| PEARL | 1.15 | 1.15 | 52 min (both variants) |
+| PEARL + fine-tune | 1.15 | 1.14 | |
+| MEHTA | 1.05 | 1.05 | 52 min |
+| MAML | 1.11 | 1.11 | 50 min |
+
+At this budget no method learns to push: about 1.1 out of 200 is the reward for never touching the puck. The family needs the level-2 budget (GPU, compute-matched) before any comparison means anything.
+
 - [Instructions](docs/INSTRUCTIONS.md): setup, reproduce everything with one command, view the site, manual review checklist
 - [System design](docs/SYSTEM-DESIGN.md): architecture, flows, decisions, testing, limits
 - [File structure](docs/FILE-STRUCTURE.md)

@@ -63,7 +63,7 @@ uv sync --group metaworld
 uv run --group metaworld python -m mehta.experiments --env mw_push --method mehta --seed 0
 ```
 
-The optional `metaworld` group adds Meta-World 3.1.1, Gymnasium 1.4.0 and MuJoCo 3.3.0; a plain `uv sync` removes it again. Families are `mw_reach`, `mw_push` and `mw_pick_place`, and methods `pearl`, `mehta`, `mehta_short` and `maml` (the v2 and physics methods perturb point-mass dynamics and are refused). Episodes are 200 steps with γ = 0.99, and training is 100 iterations, about 350k env steps. A run takes about an hour on one CPU core. Results go to `results/<env>/<method>_s<seed>.json`, with returns for the ML1 held-out goals at K ∈ {0, 50, 100, 200}. Details are in `mehta/mw_envs.py`.
+The optional `metaworld` group adds Meta-World 3.1.1, Gymnasium 1.4.0 and MuJoCo 3.3.0; a plain `uv sync` removes it again. Families are `mw_reach`, `mw_push` and `mw_pick_place`, and methods `pearl`, `mehta`, `mehta_short` and `maml` (the v2 and physics methods perturb point-mass dynamics and are refused). Episodes are 200 steps with γ = 0.99, and training is 100 iterations, about 350k env steps. A run takes about 50 minutes on one CPU core (measured on seed 0, with the machine heavily loaded). Results go to `results/<env>/<method>_s<seed>.json`, with returns for the ML1 held-out goals at K ∈ {0, 50, 100, 200}. Details are in `mehta/mw_envs.py`.
 
 ## Tests
 
