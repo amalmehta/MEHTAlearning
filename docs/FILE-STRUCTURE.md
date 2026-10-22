@@ -15,6 +15,7 @@ MEHTAlearning/
 │   ├── adapt.py              Post-training protocol and the continual sequence
 │   ├── randomize.py          Physics domain-randomization wrapper and held-out shifts
 │   ├── shift_eval.py         Checkpoints → return vs. shift magnitude, figure, site/data/shift.json
+│   ├── horizon_sweep.py      Inner-loop horizon ablation (K_inner 5–80) → figure, site/data/horizon.json
 │   ├── experiments.py        One (env, method, seed) run → results JSON
 │   ├── run_all.py            Every run, in parallel; then report + export (one command)
 │   ├── report.py             Aggregates, verdicts, README figures, site/data/results.json
@@ -29,7 +30,7 @@ MEHTAlearning/
 │   ├── js/app.js             Demo, charts, rollouts, latent explorer, theme
 │   ├── js/charts.js          Small SVG line and bar charts
 │   ├── js/model.js           JS mirror of the env, MLP and encoder
-│   └── data/                 results*.json, shift.json, demo.json (generated)
+│   └── data/                 results*.json, shift.json, horizon.json, demo.json (generated)
 ├── docs/
 │   ├── INSTRUCTIONS.md       Setup, run, use, manual review checklist
 │   ├── SYSTEM-DESIGN.md      Architecture, flows, decisions, testing, limits

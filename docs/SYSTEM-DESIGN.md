@@ -102,9 +102,13 @@ No database, no accounts, no secrets, no user data. The site sets one
 - Training methods `pearl_phys`, `mehta_phys` and `maml_phys` (`train.METHODS`) are `pearl_cm`, `mehta_v2` and `maml` with every episode, and MEHTA's inner loop, on randomized physics. The physics stream has its own seed (7000 + seed).
 - Evaluation (`mehta/shift_eval.py`): shift magnitude s scales every parameter's deviation from nominal (s = 1 is the edge of the training range). Each held-out task has a fixed sign per log parameter (RNG 5000 + seed). For each magnitude it post-trains to K ∈ {0, 100, 400} from the full checkpoint (`results/models/*_full.pt`, written by every `experiments.run`). The adaptation RNG depends only on (seed, s), so all methods see the same draws. Outputs: `results/shift/`, `site/data/shift.json`, `docs/img/shift_curves.png`.
 
+## Horizon ablation
+
+`mehta/horizon_sweep.py` sweeps MEHTA v2's inner-loop horizon. `meta_train(..., k_inner=K)` overrides only `METHODS[method]["k_inner"]` (it refuses methods with no inner loop), and `experiments --k-inner K` passes it through, tagging outputs `<method>_k<K>`. Since MEHTA v2's inner loop is the test-time protocol, K_inner is also the post-training horizon the init is meta-trained for; test-time post-training is still K ≤ 400 for every run. Horizons are 1×, 2×, 4×, 8× and 16× `mehta_short`'s K_inner = 5, on fresh seeds 12–14. Each run records `wall_sec`, `train_sec` and `peak_rss_mb` (`getrusage` ru_maxrss of its own process). Trade-off: compute grows with K_inner and is not matched. Matching it would change a second variable (PEARL updates per iteration); the cost is reported next to the return instead.
+
 ## Testing
 
-- `tests/test_core.py`: environment dynamics, rewards, horizon and splits; product-of-Gaussians correctness and permutation invariance; KL at the prior; the Reptile update arithmetic; that cloning never mutates the meta-init; that the proximal term keeps weights closer to the anchor; that PEARL-alone post-training leaves weights unchanged; continual metrics.
+- `tests/test_core.py`: environment dynamics, rewards, horizon and splits; product-of-Gaussians correctness and permutation invariance; KL at the prior; the Reptile update arithmetic; that cloning never mutates the meta-init; that the proximal term keeps weights closer to the anchor; that PEARL-alone post-training leaves weights unchanged; continual metrics; that `k_inner` overrides only the horizon.
 - `tests/test_randomize.py`: same seed → same physics and noisy observations (both envs); nominal physics = unwrapped env; delay, mass, friction and noise effects; shift magnitudes inside/outside the training range; the MuJoCo adapter on a stand-in model; checkpoint round-trip; a phys method trains through the wrapper.
 - `tests/test_export.py`: runs `site/js/model.js` in Node on a PyTorch parity fixture (actions and posterior).
 - Manual review checklist: `docs/INSTRUCTIONS.md`.

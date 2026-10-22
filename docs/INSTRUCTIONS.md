@@ -48,6 +48,14 @@ uv run python -m mehta.shift_eval --methods pearl_phys mehta_phys maml_phys --se
 uv run python -m mehta.shift_eval --report-only
 ```
 
+## Horizon ablation (inner-loop length)
+
+```bash
+uv run python -m mehta.horizon_sweep
+```
+
+This trains `mehta_v2` with K_inner ∈ {5, 10, 20, 40, 80} (1×–16× the short-horizon setting) on both environments for seeds 12–14, 30 runs, 10 at a time. Each run is `mehta.experiments --k-inner K --out results/horizon`, and nothing else changes. It writes `results/horizon/<env>/mehta_v2_k<K>_s<seed>.json` (returns, `wall_sec`, `peak_rss_mb`), `site/data/horizon.json` and `docs/img/horizon.png`. Existing runs are skipped, so an interrupted sweep resumes. Use `--jobs N` for fewer parallel processes, and `--report-only` to rebuild only the figure and data.
+
 ## Tests
 
 ```bash
