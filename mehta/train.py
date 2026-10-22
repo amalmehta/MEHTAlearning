@@ -70,12 +70,17 @@ class TrainConfig:
     eval_every: int = 20
 
 
-def meta_train(env_name: str, method: str, seed: int, tc: TrainConfig, sc: SACConfig):
+def meta_train(env_name: str, method: str, seed: int, tc: TrainConfig, sc: SACConfig, k_inner: int | None = None):
+    """k_inner overrides the method's inner-loop horizon (the horizon ablation); nothing else changes."""
     torch.manual_seed(seed)
     rng = np.random.default_rng(seed)
     Env = ENVS[env_name]
     tasks = make_task_sets(env_name, seed=seed)
-    m = METHODS[method]
+    m = dict(METHODS[method])
+    if k_inner is not None:
+        if not m["k_inner"]:
+            raise ValueError(f"{method} has no inner loop to change")
+        m["k_inner"] = k_inner
     tc = replace(tc, **m.get("tc", {}))
     agent = Agent(Env.obs_dim, Env.act_dim, sc, use_latent=m["use_latent"])
     n = len(tasks.train)
@@ -127,7 +132,8 @@ def meta_train(env_name: str, method: str, seed: int, tc: TrainConfig, sc: SACCo
             val = quick_eval(agent, Env, tasks.evals["val"])
             history.append({"iter": it, "val_return": val, "grad_steps": grad_count, "sec": round(time.time() - t0, 1)})
             log.info("%s %s seed=%d it=%d val=%.3f (%.0fs)", env_name, method, seed, it, val, time.time() - t0)
-    return agent, {"history": history, "train_cfg": asdict(tc), "sac_cfg": asdict(sc), "grad_steps": grad_count,
+    return agent, {"history": history, "train_cfg": asdict(tc), "sac_cfg": asdict(sc), "k_inner": m["k_inner"],
+                   "grad_steps": grad_count,
                    "sample_grads": sample_grads}
 
 

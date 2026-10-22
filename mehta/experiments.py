@@ -1,12 +1,16 @@
 """One training run + all of its evaluations -> results/<env>/<method>_s<seed>.json
 
   uv run python -m mehta.experiments --env point_goal --method mehta --seed 0
+  uv run python -m mehta.experiments --env point_goal --method mehta_v2 --seed 12 --k-inner 20 --out results/horizon
+      (inner-loop horizon override -> <out>/<env>/<method>_k20_s12.json)
 """
 from __future__ import annotations
 
 import argparse
 import json
 import logging
+import resource
+import sys
 import time
 from pathlib import Path
 
@@ -50,11 +54,19 @@ CONTINUAL_VARIANTS = {
 RECORD_SEEDS = {0, 3}               # seed 0: v1 demo; seed 3: first v2 confirmatory seed
 
 
-def run(env_name: str, method: str, seed: int, sets=None, out_dir: Path = RESULTS) -> dict:
+def peak_rss_mb() -> float:
+    """Peak resident memory of this process (ru_maxrss is bytes on macOS, KiB on Linux)."""
+    rss = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
+    return round(rss / 2**20 if sys.platform == "darwin" else rss / 2**10, 1)
+
+
+def run(env_name: str, method: str, seed: int, sets=None, out_dir: Path = RESULTS, k_inner: int | None = None) -> dict:
     torch.set_num_threads(1)
     t0 = time.time()
     Env = ENVS[env_name]
-    agent, info = meta_train(env_name, method, seed, TrainConfig(), SACConfig())
+    agent, info = meta_train(env_name, method, seed, TrainConfig(), SACConfig(), k_inner=k_inner)
+    train_sec = round(time.time() - t0, 1)
+    tag = method if k_inner is None else f"{method}_k{k_inner}"
     tasks = make_task_sets(env_name, seed=seed)
     rng = np.random.default_rng(10_000 + seed)
     record = seed in RECORD_SEEDS
@@ -71,7 +83,7 @@ def run(env_name: str, method: str, seed: int, sets=None, out_dir: Path = RESULT
                 per_task.append({str(k): v for k, v in out.items()})
                 trajs.append({"task": task.as_dict(), "xy": {str(k): v for k, v in tr.items()}})
                 if kept:
-                    torch.save(kept, models / f"{env_name}_{vname}_s{seed}_{set_name}{ti}_adapted.pt")
+                    torch.save(kept, models / f"{env_name}_{vname}{tag[len(method):]}_s{seed}_{set_name}{ti}_adapted.pt")
             res["axis_a"][vname][set_name] = per_task
             if record:
                 res["traj"].setdefault(vname, {})[set_name] = trajs
@@ -84,15 +96,19 @@ def run(env_name: str, method: str, seed: int, sets=None, out_dir: Path = RESULT
             res["axis_c"][vname] = {"R": R, **continual_metrics(R)}
 
     # full checkpoint (critics included) for later evaluations such as mehta.shift_eval
-    torch.save(agent.checkpoint(), models / f"{env_name}_{method}_s{seed}_full.pt")
+    torch.save(agent.checkpoint(), models / f"{env_name}_{tag}_s{seed}_full.pt")
     if record:
         torch.save(
             {"actor": agent.actor.state_dict(), "encoder": agent.encoder.state_dict() if agent.encoder else None,
              "latent_dim": agent.latent_dim, "hidden": agent.cfg.hidden},
-            models / f"{env_name}_{method}_s{seed}.pt",
+            models / f"{env_name}_{tag}_s{seed}.pt",
         )
     res["wall_sec"] = round(time.time() - t0, 1)
-    path = out_dir / env_name / f"{method}_s{seed}.json"
+    res["train_sec"] = train_sec
+    res["peak_rss_mb"] = peak_rss_mb()
+    if k_inner is not None:
+        res["k_inner"] = k_inner
+    path = out_dir / env_name / f"{tag}_s{seed}.json"
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(res))
     return res
@@ -105,9 +121,10 @@ def main():
     ap.add_argument("--seed", type=int, required=True)
     ap.add_argument("--out", default=str(RESULTS))
     ap.add_argument("--sets", nargs="+", help="evaluation sets for axis (a); default per env")
+    ap.add_argument("--k-inner", type=int, help="override the inner-loop horizon K_inner (horizon ablation)")
     a = ap.parse_args()
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(message)s", datefmt="%H:%M:%S")
-    run(a.env, a.method, a.seed, sets=a.sets, out_dir=Path(a.out))
+    run(a.env, a.method, a.seed, sets=a.sets, out_dir=Path(a.out), k_inner=a.k_inner)
 
 
 if __name__ == "__main__":

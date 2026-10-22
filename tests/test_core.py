@@ -192,6 +192,18 @@ def test_v2_configs_are_compute_matched():
 
 
 # ---- v3 ---------------------------------------------------------------------
+def test_k_inner_override_changes_only_the_horizon():
+    from mehta.train import TrainConfig, meta_train
+    tc, sc = TrainConfig(n_iters=1, eval_every=10**6), SACConfig(hidden=16)
+    _, base = meta_train("point_goal", "mehta_v2", 0, tc, sc)
+    _, short = meta_train("point_goal", "mehta_v2", 0, tc, sc, k_inner=5)
+    assert (base["k_inner"], short["k_inner"]) == (50, 5)
+    assert base["train_cfg"] == short["train_cfg"] and base["sac_cfg"] == short["sac_cfg"]
+    assert base["grad_steps"] - short["grad_steps"] == (50 - 5) * tc.reptile_tasks
+    with pytest.raises(ValueError):
+        meta_train("point_goal", "pearl_cm", 0, tc, sc, k_inner=5)
+
+
 def test_oracle_is_invariant_to_known_action_transforms():
     """An oracle that knows the dynamics should score about the same under any
     invertible action transform for the same goal. Not exactly: the action box
