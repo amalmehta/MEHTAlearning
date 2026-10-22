@@ -3,6 +3,8 @@
   uv run python -m mehta.experiments --env point_goal --method mehta --seed 0
   uv run python -m mehta.experiments --env point_goal --method mehta_v2 --seed 12 --k-inner 20 --out results/horizon
       (inner-loop horizon override -> <out>/<env>/<method>_k20_s12.json)
+  uv run --group metaworld python -m mehta.experiments --env mw_push --method mehta --seed 0
+      (Meta-World ML1; also mw_reach, mw_pick_place)
 """
 from __future__ import annotations
 
@@ -20,13 +22,19 @@ import torch
 from .adapt import continual, continual_metrics, post_train
 from .agent import SACConfig
 from .envs import ENVS, make_task_sets
-from .train import TrainConfig, meta_train
+from .mw_envs import MW_ENVS
+from .train import METHODS, TrainConfig, meta_train
 
 ROOT = Path(__file__).resolve().parent.parent
 RESULTS = ROOT / "results"
 LAM = 0.5                          # proximal weight at post-training (chosen on dev seed)
-CKPT = {"point_goal": [0, 25, 50, 100, 200, 400], "waypoints": [0, 50, 100, 200, 400]}
-AXIS_A_SETS = {"point_goal": ["id", "ood_goal", "ood_dyn"], "waypoints": ["id"]}
+CKPT = {"point_goal": [0, 25, 50, 100, 200, 400], "waypoints": [0, 50, 100, 200, 400],
+        **{e: [0, 50, 100, 200] for e in MW_ENVS}}
+AXIS_A_SETS = {"point_goal": ["id", "ood_goal", "ood_dyn"], "waypoints": ["id"], **{e: ["id"] for e in MW_ENVS}}
+# Meta-World episodes are 10x longer (200 steps, ~130-500 env steps/s on CPU), so
+# the CPU pilot budget is 100 iterations (~350k env steps) instead of 300.
+# Level-2 runs (docs/LEVEL-2-PLAN.md) set their own, compute-matched budget.
+TRAIN_CFG = {e: dict(n_iters=100) for e in MW_ENVS}
 K_CONTINUAL = 100
 DEMO_KEEP = (0, 100, 400)
 
@@ -64,7 +72,10 @@ def run(env_name: str, method: str, seed: int, sets=None, out_dir: Path = RESULT
     torch.set_num_threads(1)
     t0 = time.time()
     Env = ENVS[env_name]
-    agent, info = meta_train(env_name, method, seed, TrainConfig(), SACConfig(), k_inner=k_inner)
+    if env_name in MW_ENVS and any(METHODS[method].get(k) for k in ("online", "dr", "phys")):
+        raise ValueError(f"{method} perturbs point-mass dynamics; on Meta-World use pearl, mehta, mehta_short or maml")
+    agent, info = meta_train(env_name, method, seed, TrainConfig(**TRAIN_CFG.get(env_name, {})), SACConfig(),
+                             k_inner=k_inner)
     train_sec = round(time.time() - t0, 1)
     tag = method if k_inner is None else f"{method}_k{k_inner}"
     tasks = make_task_sets(env_name, seed=seed)

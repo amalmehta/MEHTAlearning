@@ -15,6 +15,8 @@ from dataclasses import dataclass, field
 
 import numpy as np
 
+from .mw_envs import MW_ENVS, mw_task_sets
+
 STEP = 0.1          # max displacement per axis per step (PEARL: action box +-0.1)
 GOAL_RADIUS = 0.2   # PEARL's sparse goal radius
 
@@ -177,7 +179,7 @@ class PointWaypoints:
         return self._obs(), shaped, sparse, self.t >= self.horizon
 
 
-ENVS = {"point_goal": PointGoal, "waypoints": PointWaypoints}
+ENVS = {"point_goal": PointGoal, "waypoints": PointWaypoints, **MW_ENVS}
 
 
 @dataclass
@@ -188,7 +190,10 @@ class TaskSets:
 
 def make_task_sets(env_name: str, n_train: int = 40, n_eval: int = 5, seed: int = 0) -> TaskSets:
     """Fixed task splits. Train goals: angle in [0, pi]. Eval tasks are drawn with
-    a separate RNG so they never coincide with training goals."""
+    a separate RNG so they never coincide with training goals. Meta-World
+    families use the benchmark's own train / held-out goals (mw_envs.py)."""
+    if env_name in MW_ENVS:
+        return TaskSets(*mw_task_sets(env_name, n_eval=n_eval, seed=seed))
     train = [Task(float(a), 0.0, f"train{i}") for i, a in enumerate(np.linspace(0, np.pi, n_train))]
     rng = np.random.default_rng(1000 + seed)
     id_angles = rng.uniform(0, np.pi, n_eval)

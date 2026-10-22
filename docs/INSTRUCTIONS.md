@@ -56,11 +56,22 @@ uv run python -m mehta.horizon_sweep
 
 This trains `mehta_v2` with K_inner ∈ {5, 10, 20, 40, 80} (1×–16× the short-horizon setting) on both environments for seeds 12–14, 30 runs, 10 at a time. Each run is `mehta.experiments --k-inner K --out results/horizon`, and nothing else changes. It writes `results/horizon/<env>/mehta_v2_k<K>_s<seed>.json` (returns, `wall_sec`, `peak_rss_mb`), `site/data/horizon.json` and `docs/img/horizon.png`. Existing runs are skipped, so an interrupted sweep resumes. Use `--jobs N` for fewer parallel processes, and `--report-only` to rebuild only the figure and data.
 
+## Meta-World ML1 (between the 2-D tasks and level 2)
+
+```bash
+uv sync --group metaworld
+uv run --group metaworld python -m mehta.experiments --env mw_push --method mehta --seed 0
+```
+
+The optional `metaworld` group adds Meta-World 3.1.1, Gymnasium 1.4.0 and MuJoCo 3.3.0; a plain `uv sync` removes it again. Families are `mw_reach`, `mw_push` and `mw_pick_place`, and methods `pearl`, `mehta`, `mehta_short` and `maml` (the v2 and physics methods perturb point-mass dynamics and are refused). Episodes are 200 steps with γ = 0.99, and training is 100 iterations, about 350k env steps. A run takes about an hour on one CPU core. Results go to `results/<env>/<method>_s<seed>.json`, with returns for the ML1 held-out goals at K ∈ {0, 50, 100, 200}. Details are in `mehta/mw_envs.py`.
+
 ## Tests
 
 ```bash
 uv run pytest
 ```
+
+The Meta-World tests are skipped unless the `metaworld` group is installed (`uv run --group metaworld pytest`).
 
 ## View the website locally
 

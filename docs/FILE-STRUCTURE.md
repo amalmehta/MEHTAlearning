@@ -4,9 +4,10 @@
 MEHTAlearning/
 ├── README.md                 What it is, figures, links
 ├── MEHTAlearning.md          Project spec: definitions, decisions, deferred items, changelog
-├── pyproject.toml, uv.lock   Pinned Python environment (Python 3.12, torch 2.2.2 CPU)
+├── pyproject.toml, uv.lock   Pinned Python environment (Python 3.12, torch 2.2.2 CPU; optional metaworld group)
 ├── mehta/                    The research code
-│   ├── envs.py               Point-Goal and Point-Waypoints environments, task splits
+│   ├── envs.py               Point-Goal and Point-Waypoints environments, task splits, env registry
+│   ├── mw_envs.py            Meta-World ML1 families (reach, push, pick-place) behind the same interface
 │   ├── nets.py               Actor, Q-network, PEARL encoder (product of Gaussians)
 │   ├── agent.py              SAC + latent; clone, proximal term, first-order meta-update
 │   ├── buffers.py            Per-task replay buffers and context tensors
@@ -23,6 +24,7 @@ MEHTAlearning/
 ├── tests/
 │   ├── test_core.py          Envs, PEARL math, MEHTA pieces, metrics
 │   ├── test_randomize.py     Wrapper determinism, physics effects, shifts, checkpoints
+│   ├── test_metaworld.py     Meta-World interface, splits, shared sim (skipped without the group)
 │   └── test_export.py        JS demo model vs PyTorch (needs Node)
 ├── results/                  Confirmatory runs (seeds 0–2) as JSON; models/ and logs/ are git-ignored
 ├── site/                     The website (GitHub Pages serves this folder)
