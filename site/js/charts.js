@@ -33,7 +33,8 @@ export const hideTip = () => tip().classList.remove("show");
 
 /**
  * series: [{key, label, points: [[x, mean, std], ...]}]
- * opts: {title, xLabel, yLabel, yMin, yMax, logX, shadeTo, shadeLabel}
+ * opts: {title, xLabel, yLabel, yMin, yMax, logX, shadeTo, shadeLabel, xFormat}
+ * xFormat(x) labels x ticks and tooltips (e.g. plot log2 positions, show the raw value)
  */
 export function lineChart(container, series, opts = {}) {
   const box = document.createElement("div");
@@ -60,7 +61,8 @@ export function lineChart(container, series, opts = {}) {
     el("text", { x: m.l - 5, y: sy(t) + 3.5, "text-anchor": "end" }, svg).textContent = fmt(t);
   }
   const xt = opts.xTicks || [...new Set(xs)].sort((a, b) => a - b);
-  for (const t of xt) el("text", { x: sx(t), y: H - m.b + 14, "text-anchor": "middle" }, svg).textContent = t;
+  const xf = opts.xFormat || ((x) => x);
+  for (const t of xt) el("text", { x: sx(t), y: H - m.b + 14, "text-anchor": "middle" }, svg).textContent = xf(t);
   if (opts.xLabel) el("text", { x: (m.l + W - m.r) / 2, y: H - 4, "text-anchor": "middle" }, svg).textContent = opts.xLabel;
   const groups = {};
   for (const s of series) {
@@ -75,7 +77,7 @@ export function lineChart(container, series, opts = {}) {
       c.addEventListener("pointerenter", (e) => {
         c.setAttribute("r", 4.5);
         box.classList.add("dim"); g.classList.add("hl");
-        showTip(e, `<b>${s.label}</b><br>${opts.xName || "x"} = ${p[0]}: ${fmt(p[1])} ± ${fmt(p[2])}${p[3] ? ` (${p[3]} seeds)` : ""}`);
+        showTip(e, `<b>${s.label}</b><br>${opts.xName || "x"} = ${xf(p[0])}: ${fmt(p[1])} ± ${fmt(p[2])}${p[3] ? ` (${p[3]} seeds)` : ""}`);
       });
       c.addEventListener("pointerleave", () => { c.setAttribute("r", 2.6); box.classList.remove("dim"); g.classList.remove("hl"); hideTip(); });
     }

@@ -22,6 +22,7 @@
   --c-pearl_dr_cm: #0e7490;
   --c-pearl_dr_cm_ft: #22b8d4;
   --c-pearl_phys: #1e3a8a; --c-pearl_phys_ft: #3b82f6; --c-mehta_phys: #9a3412; --c-maml_phys: #15803d;
+  --c-hz_id: #9a3412; --c-hz_ood_goal: #d97706; --c-hz_ood_dyn: #e0835a; --c-hz_point_goal: #1e3a8a; --c-hz_waypoints: #15803d;
   --serif: "Source Serif 4", Georgia, serif;
   --sans: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   --ease: cubic-bezier(.2, .7, .2, 1);
@@ -35,6 +36,7 @@
     --c-pearl: #6f9cf5; --c-pearl_ft: #a7c3fa; --c-maml: #4cc27a;
     --c-mehta_v2: #ff6b35; --c-mehta_v2_lam0: #fdba74; --c-pearl_cm: #93b4fb; --c-pearl_cm_ft: #c7d8fd; --c-pearl_dr_cm: #2fc4d9; --c-pearl_dr_cm_ft: #8be6f2;
     --c-pearl_phys: #93b4fb; --c-pearl_phys_ft: #c7d8fd; --c-mehta_phys: #ff6b35; --c-maml_phys: #4cc27a;
+    --c-hz_id: #ff6b35; --c-hz_ood_goal: #f2b63d; --c-hz_ood_dyn: #f5b394; --c-hz_point_goal: #93b4fb; --c-hz_waypoints: #4cc27a;
     color-scheme: dark;
   }
 }
@@ -45,6 +47,7 @@
   --c-pearl: #6f9cf5; --c-pearl_ft: #a7c3fa; --c-maml: #4cc27a;
   --c-mehta_v2: #ff6b35; --c-mehta_v2_lam0: #fdba74; --c-pearl_cm: #93b4fb; --c-pearl_cm_ft: #c7d8fd; --c-pearl_dr_cm: #2fc4d9; --c-pearl_dr_cm_ft: #8be6f2;
     --c-pearl_phys: #93b4fb; --c-pearl_phys_ft: #c7d8fd; --c-mehta_phys: #ff6b35; --c-maml_phys: #4cc27a;
+    --c-hz_id: #ff6b35; --c-hz_ood_goal: #f2b63d; --c-hz_ood_dyn: #f5b394; --c-hz_point_goal: #93b4fb; --c-hz_waypoints: #4cc27a;
   color-scheme: dark;
 }
 
@@ -126,6 +129,8 @@ figcaption { font: 13px var(--sans); color: var(--muted); margin-top: 6px; displ
 .c-pearl_dr_cm { background: var(--c-pearl_dr_cm); } .c-pearl_dr_cm_ft { background: var(--c-pearl_dr_cm_ft); }
 .c-pearl_phys { background: var(--c-pearl_phys); } .c-pearl_phys_ft { background: var(--c-pearl_phys_ft); }
 .c-mehta_phys { background: var(--c-mehta_phys); } .c-maml_phys { background: var(--c-maml_phys); }
+.c-hz_id { background: var(--c-hz_id); } .c-hz_ood_goal { background: var(--c-hz_ood_goal); } .c-hz_ood_dyn { background: var(--c-hz_ood_dyn); }
+.c-hz_point_goal { background: var(--c-hz_point_goal); } .c-hz_waypoints { background: var(--c-hz_waypoints); }
 .c-pearl { background: var(--c-pearl); } .c-pearl_ft { background: var(--c-pearl_ft); } .c-maml { background: var(--c-maml); }
 
 /* ---- method ---- */
@@ -167,6 +172,8 @@ td { border-bottom: 1px solid var(--rule); padding: 9px 10px 9px 0; vertical-ali
 .legend { display: flex; flex-wrap: wrap; gap: 6px 16px; font: 13px var(--sans); color: var(--muted); margin: 6px 0 0; }
 .legend button { all: unset; display: inline-flex; gap: 6px; align-items: center; cursor: pointer; padding: 2px 4px; border-radius: 6px; transition: opacity .15s; }
 .legend button.off { opacity: .35; }
+.legend > span { display: inline-flex; gap: 6px; align-items: center; padding: 2px 4px; }
+.pm { color: var(--muted); }
 .legend button:focus-visible { outline: 2px solid var(--accent); }
 .empty { font: 13px var(--sans); color: var(--muted); padding: 24px; text-align: center; border: 1px dashed var(--rule); border-radius: 12px; }
 

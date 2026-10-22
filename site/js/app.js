@@ -81,7 +81,33 @@ resultsP.then((res) => (res ? initResults(res) : emptyNote("#chart-a", "No resul
 getJSON("data/results_v2.json").then((res) => (res ? initResults(res, V2_IDS) : emptyNote("#chart-a-v2", "Version 2 confirmatory runs are not finished yet.")));
 getJSON("data/results_v3.json").then((res) => (res ? (initResults(res, V3_IDS), closureTable(res)) : emptyNote("#chart-a-v3", "Version 3 confirmatory runs are not finished yet.")));
 getJSON("data/shift_selection.json").then((sel) => sel && selectionTable(sel));
+getJSON("data/horizon.json").then((hz) => (hz ? initHorizon(hz) : emptyNote("#chart-hz", "Horizon sweep is not finished yet: run uv run python -m mehta.horizon_sweep")));
 getJSON("data/shift.json").then((sh) => (sh ? initShift(sh) : emptyNote("#chart-s2r", "Shift-curve runs are not finished yet: run uv run python -m mehta.run_all --version shift --seeds 9 10 11")));
+
+function initHorizon(hz) {
+  // x positions are log2(K / K_short), so 1x..16x are evenly spaced; labels show K_inner
+  const pos = (k) => Math.log2(k / hz.k_short), xFormat = (t) => String(Math.round(hz.k_short * 2 ** t));
+  const pts = (d) => Object.keys(d).sort((a, b) => a - b).map((k) => [pos(Number(k)), ...d[k]]);
+  const opts = { xName: "K_inner", xLabel: "inner-loop horizon K_inner", xTicks: hz.horizons.map(pos), xFormat };
+  const envs = Object.keys(hz.env_labels).filter((e) => hz.curves[e]);
+  for (const e of envs) {
+    const series = Object.entries(hz.curves[e].return).map(([sn, d]) => ({ key: `hz_${sn}`, label: hz.set_labels[sn], points: pts(d) }));
+    lineChart($("#chart-hz"), series, { ...opts, title: `${hz.env_labels[e]}, after K=${hz.k_final[e]} steps` });
+  }
+  const short = (e) => hz.env_labels[e].split(" (")[0];
+  for (const [m, title] of [["wall_min", "Wall-clock per run (minutes)"], ["peak_mb", "Peak memory per run (MB)"]])
+    lineChart($("#chart-hz-cost"), envs.map((e) => ({ key: `hz_${e}`, label: short(e), points: pts(hz.curves[e][m]) })), { ...opts, title });
+  const sets = Object.keys(hz.set_labels);
+  const cols = envs.flatMap((e) => sets.filter((sn) => hz.curves[e].return[sn]).map((sn) => [e, sn]));
+  const cell = ([m, sd]) => `${m.toFixed(2)} <span class="pm">± ${sd.toFixed(2)}</span>`;
+  $("#hz-table").innerHTML = `<thead><tr><th>K_inner</th>${cols.map(([e, sn]) => `<th>${short(e)}: ${hz.set_labels[sn]}</th>`).join("")}` +
+    envs.map((e) => `<th>${short(e)}: minutes</th>`).join("") + `</tr></thead><tbody>` +
+    hz.horizons.map((k) => `<tr><td class="n">${k} (${k / hz.k_short}×)</td>` +
+      cols.map(([e, sn]) => `<td class="n">${hz.curves[e].return[sn][k] ? cell(hz.curves[e].return[sn][k]) : "–"}</td>`).join("") +
+      envs.map((e) => `<td class="n">${hz.curves[e].wall_min[k] ? hz.curves[e].wall_min[k][0].toFixed(0) : "–"}</td>`).join("") + `</tr>`).join("") + "</tbody>";
+  const leg = $("#legend-hz");
+  for (const sn of sets) leg.insertAdjacentHTML("beforeend", `<span><span class="dot c-hz_${sn}"></span>${hz.set_labels[sn]}</span> `);
+}
 
 function initShift(sh) {
   const pt = $("#s2r-params");

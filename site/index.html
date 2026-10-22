@@ -19,7 +19,7 @@
 <header class="top">
   <a class="brand" href="#"><img src="favicon.svg" alt="" width="22" height="22"> MEHTA Learning</a>
   <nav>
-    <a href="#demo">Demo</a><a href="#method">Method</a><a href="#experiments">Experiments</a><a href="#v2">Version 2</a><a href="#v3">Version 3</a><a href="#sim2real">Sim-to-real</a><a href="#roadmap">Roadmap</a>
+    <a href="#demo">Demo</a><a href="#method">Method</a><a href="#experiments">Experiments</a><a href="#v2">Version 2</a><a href="#v3">Version 3</a><a href="#horizon">Horizon</a><a href="#sim2real">Sim-to-real</a><a href="#roadmap">Roadmap</a>
     <a href="https://github.com/amalmehta/MEHTAlearning">Code</a>
     <button id="theme" class="icon-btn" aria-label="Toggle dark mode" title="Toggle dark mode">◐</button>
   </nav>
@@ -252,6 +252,18 @@
   <div class="chart-row" id="chart-b-v3"></div>
   <div class="chart-row" id="chart-c-v3"></div>
   <div class="table-wrap"><table id="verdicts-v3" class="verdicts"></table></div>
+</section>
+
+<section id="horizon">
+  <h2>Ablation: how long should the inner loop be?</h2>
+  <p>MEHTA v2's inner loop runs the test-time post-training protocol, so its length K_inner is also the post-training horizon the initialization is meta-trained for. This sweep changes <b>only</b> K_inner, over 1× to 16× the short-horizon setting (5, 10, 20, 40, 80 steps; the default is 50), on <b>fresh seeds 12–14</b>, run once. Every other hyperparameter is fixed, so longer horizons also cost more compute: each extra inner step adds 2 tasks × 128 samples per iteration. The metric is the return after K=400 post-training steps, mean ± std over seeds. The hypothesis (<a href="https://github.com/amalmehta/MEHTAlearning/blob/main/MEHTAlearning.md">pre-registered in the spec</a>) was that return rises with K_inner.</p>
+  <div id="hz-findings"><!-- HZ-FINDINGS --></div>
+  <div class="chart-row" id="chart-hz"></div>
+  <div class="legend" id="legend-hz"></div>
+  <div class="table-wrap"><table id="hz-table"></table></div>
+  <h4 class="sub">What a longer horizon costs</h4>
+  <div class="chart-row" id="chart-hz-cost"></div>
+  <p class="note">Wall-clock and peak memory are measured per run while 10 runs share one 16-thread CPU with other work, so they compare horizons within this sweep; they are not benchmarks. Reproduce with <code>uv run python -m mehta.horizon_sweep</code>.</p>
 </section>
 
 <section id="sim2real">
