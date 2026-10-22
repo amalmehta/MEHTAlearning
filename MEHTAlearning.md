@@ -295,6 +295,22 @@ RESULTS v3 (2026-10-21, pre-registered, fresh seeds 6–8):
 - Rotation 60°: MEHTA v2 now worse than both fine-tuned baselines.
 - Oracle reference (greedy, knows goal and dynamics): about −3.7 to −3.9.
 
+PRE-REGISTERED HORIZON ABLATION (written 2026-10-21, before any sweep run):
+
+- Question: does a longer meta-training inner loop (= meta-trained post-training
+  horizon, since MEHTA v2's inner loop runs the test-time protocol) give a better
+  final adaptation return?
+- Config: mehta_v2 unchanged except K_inner ∈ {5, 10, 20, 40, 80} = 1×–16× the
+  short-horizon setting (mehta_short, K_inner = 5), set by
+  `mehta.experiments --k-inner`. Every other hyperparameter fixed, so compute is
+  NOT matched across horizons (each step of K_inner adds 2 tasks × 128 samples).
+- Envs point_goal (id, ood_goal, ood_dyn) and waypoints (id); fresh seeds 12–14,
+  run once. Metric = mean return over a set's tasks at the last post-training
+  checkpoint (K = 400), mean ± std over seeds. Also logged per run: wall-clock
+  and peak resident memory (processes share the machine, so cost is relative).
+- H: return rises with K_inner (16× beats 1× by the spec rule, gap > summed std).
+  Expectation from v1 (5 vs 50: no clear difference): flat. Reported either way.
+
 OPEN QUESTIONS / ASSUMPTIONS:
 
 - Assumed SAC v2 (twin Q + automatic entropy) in place of PEARL's original
