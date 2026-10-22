@@ -311,6 +311,16 @@ PRE-REGISTERED HORIZON ABLATION (written 2026-10-21, before any sweep run):
 - H: return rises with K_inner (16× beats 1× by the spec rule, gap > summed std).
   Expectation from v1 (5 vs 50: no clear difference): flat. Reported either way.
 
+RESULTS HORIZON ABLATION (2026-10-21, pre-registered, fresh seeds 12–14):
+
+- H NOT supported: return at K=400 is flat in K_inner on every set. Point-Goal
+  ID: 1× −4.99 ± 0.81, 16× −4.57 ± 0.47 (no clear difference); OOD-goal
+  −17.1 to −18.0; OOD-dyn −6.7 to −7.9. Waypoints: 0.4–1.0, no trend (2× vs 4×
+  passes the rule; that's 1 of 10 pairs, so treated as chance).
+- Cost: 16× = 2.8× gradient steps, 1.5× sample-gradients (11.9 M → 17.7 M).
+  Measured wall-clock (36–59 min) and peak RSS (330–510 MB) were dominated by
+  machine load (load average about 100) and run order, not the horizon.
+
 OPEN QUESTIONS / ASSUMPTIONS:
 
 - Assumed SAC v2 (twin Q + automatic entropy) in place of PEARL's original
@@ -374,3 +384,4 @@ CHANGELOG:
 - 2026-10-20 — added the level-2 plan (HalfCheetah-Vel, Meta-World ML1/ML10; compute-matched; K_inner sweep; 5 seeds; ≈$125–285 on Modal)
 - 2026-10-20 — v2: diagnosed v1, redesigned the MAML step, added compute-matched and DR controls, fixed Waypoints shaping; confirmed on fresh seeds 3–5 (MAML step: still no gain; Waypoints: now solvable)
 - 2026-10-21 — v3: pre-registered hard-shift test (mirrored actions, chosen with PEARL only on dev seed), confirmed on seeds 6–8: not supported; corrected v2's ceiling claim using a measured oracle
+- 2026-10-21 — horizon ablation: K_inner 5–80 (1×–16× short) for mehta_v2 via --k-inner, pre-registered, seeds 12–14; flat (not supported); figure, site section, README

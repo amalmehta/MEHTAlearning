@@ -257,13 +257,22 @@
 <section id="horizon">
   <h2>Ablation: how long should the inner loop be?</h2>
   <p>MEHTA v2's inner loop runs the test-time post-training protocol, so its length K_inner is also the post-training horizon the initialization is meta-trained for. This sweep changes <b>only</b> K_inner, over 1× to 16× the short-horizon setting (5, 10, 20, 40, 80 steps; the default is 50), on <b>fresh seeds 12–14</b>, run once. Every other hyperparameter is fixed, so longer horizons also cost more compute: each extra inner step adds 2 tasks × 128 samples per iteration. The metric is the return after K=400 post-training steps, mean ± std over seeds. The hypothesis (<a href="https://github.com/amalmehta/MEHTAlearning/blob/main/MEHTAlearning.md">pre-registered in the spec</a>) was that return rises with K_inner.</p>
-  <div id="hz-findings"><!-- HZ-FINDINGS --></div>
+  <h3>Results on fresh seeds 12–14</h3>
+  <div id="hz-findings">
+    <ul>
+      <li><b>The pre-registered hypothesis is not supported: final return is flat in K_inner.</b> On Point-Goal in-distribution goals, 16× scores −4.57 ± 0.47 against −4.99 ± 0.81 at 1×, which is no clear difference. New goals (−17.1 to −18.0) and shifted dynamics (−6.7 to −7.9) are flat too.</li>
+      <li><b>Waypoints is noisy with no trend.</b> Waypoints reached ranges from 0.4 to 1.0, with std up to ±0.49; 16× gets 0.60 ± 0.49 against 0.73 ± 0.34 at 1×. The one pair that passes the "beats" rule (2× vs 4×: 1.00 ± 0.28 vs 0.40 ± 0.28) is not part of any trend, and among 10 pairwise comparisons on 3 seeds, one such pass is expected by chance.</li>
+      <li><b>Longer costs more and buys nothing measurable.</b> 16× takes 2.8× the gradient steps and 1.5× the sample-gradients in meta-training (11.9 M → 17.7 M).</li>
+    </ul>
+    <p class="note"><b>Reading.</b> This agrees with v1 (5 vs 50 steps: no clear difference) and with v2–v3: the MAML step adds little over PEARL's own initialization at this scale, so how far it looks ahead changes little. A horizon effect may still appear on harder tasks, where post-training has more to do (level 2).</p>
+  </div>
   <div class="chart-row" id="chart-hz"></div>
   <div class="legend" id="legend-hz"></div>
   <div class="table-wrap"><table id="hz-table"></table></div>
   <h4 class="sub">What a longer horizon costs</h4>
   <div class="chart-row" id="chart-hz-cost"></div>
-  <p class="note">Wall-clock and peak memory are measured per run while 10 runs share one 16-thread CPU with other work, so they compare horizons within this sweep; they are not benchmarks. Reproduce with <code>uv run python -m mehta.horizon_sweep</code>.</p>
+  <div class="legend" id="legend-hz-cost"></div>
+  <p class="note">Sample-gradients are exact. Wall-clock and peak memory were measured per run while 10 runs shared one 16-thread CPU with other heavy work (load average around 100), and they are dominated by that load, not by the horizon. Wall-clock varies by up to ±7 minutes between seeds. Peak memory even <i>falls</i> at long horizons (Waypoints 509 → 445 MB), because those runs started first, under different memory pressure. The inner loop clones only the small actor and critics, so the horizon itself adds no memory to speak of. Treat these two as measured, not as benchmarks. Reproduce with <code>uv run python -m mehta.horizon_sweep</code>.</p>
 </section>
 
 <section id="sim2real">

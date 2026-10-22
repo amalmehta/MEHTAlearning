@@ -95,18 +95,23 @@ function initHorizon(hz) {
     lineChart($("#chart-hz"), series, { ...opts, title: `${hz.env_labels[e]}, after K=${hz.k_final[e]} steps` });
   }
   const short = (e) => hz.env_labels[e].split(" (")[0];
-  for (const [m, title] of [["wall_min", "Wall-clock per run (minutes)"], ["peak_mb", "Peak memory per run (MB)"]])
+  // compute is identical for both environments, so it is one series
+  lineChart($("#chart-hz-cost"), [{ key: "hz_compute", label: "Both environments", points: pts(hz.curves[envs[0]].sample_grads_m) }],
+    { ...opts, title: "Meta-training compute, both envs (million sample-gradients)" });
+  for (const [m, title] of [["wall_min", "Measured wall-clock per run (minutes)"], ["peak_mb", "Measured peak memory per run (MB)"]])
     lineChart($("#chart-hz-cost"), envs.map((e) => ({ key: `hz_${e}`, label: short(e), points: pts(hz.curves[e][m]) })), { ...opts, title });
   const sets = Object.keys(hz.set_labels);
   const cols = envs.flatMap((e) => sets.filter((sn) => hz.curves[e].return[sn]).map((sn) => [e, sn]));
   const cell = ([m, sd]) => `${m.toFixed(2)} <span class="pm">± ${sd.toFixed(2)}</span>`;
   $("#hz-table").innerHTML = `<thead><tr><th>K_inner</th>${cols.map(([e, sn]) => `<th>${short(e)}: ${hz.set_labels[sn]}</th>`).join("")}` +
-    envs.map((e) => `<th>${short(e)}: minutes</th>`).join("") + `</tr></thead><tbody>` +
+    `<th>Sample-gradients (M)</th>` + envs.map((e) => `<th>${short(e)}: minutes</th>`).join("") + `</tr></thead><tbody>` +
     hz.horizons.map((k) => `<tr><td class="n">${k} (${k / hz.k_short}×)</td>` +
       cols.map(([e, sn]) => `<td class="n">${hz.curves[e].return[sn][k] ? cell(hz.curves[e].return[sn][k]) : "–"}</td>`).join("") +
+      `<td class="n">${hz.curves[envs[0]].sample_grads_m[k][0].toFixed(1)}</td>` +
       envs.map((e) => `<td class="n">${hz.curves[e].wall_min[k] ? hz.curves[e].wall_min[k][0].toFixed(0) : "–"}</td>`).join("") + `</tr>`).join("") + "</tbody>";
   const leg = $("#legend-hz");
   for (const sn of sets) leg.insertAdjacentHTML("beforeend", `<span><span class="dot c-hz_${sn}"></span>${hz.set_labels[sn]}</span> `);
+  for (const e of envs) $("#legend-hz-cost").insertAdjacentHTML("beforeend", `<span><span class="dot c-hz_${e}"></span>${short(e)}</span> `);
 }
 
 function initShift(sh) {

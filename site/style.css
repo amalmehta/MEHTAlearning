@@ -22,7 +22,7 @@
   --c-pearl_dr_cm: #0e7490;
   --c-pearl_dr_cm_ft: #22b8d4;
   --c-pearl_phys: #1e3a8a; --c-pearl_phys_ft: #3b82f6; --c-mehta_phys: #9a3412; --c-maml_phys: #15803d;
-  --c-hz_id: #9a3412; --c-hz_ood_goal: #d97706; --c-hz_ood_dyn: #e0835a; --c-hz_point_goal: #1e3a8a; --c-hz_waypoints: #15803d;
+  --c-hz_id: #9a3412; --c-hz_ood_goal: #d97706; --c-hz_ood_dyn: #e0835a; --c-hz_point_goal: #1e3a8a; --c-hz_waypoints: #15803d; --c-hz_compute: #6b6157;
   --serif: "Source Serif 4", Georgia, serif;
   --sans: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   --ease: cubic-bezier(.2, .7, .2, 1);
@@ -36,7 +36,7 @@
     --c-pearl: #6f9cf5; --c-pearl_ft: #a7c3fa; --c-maml: #4cc27a;
     --c-mehta_v2: #ff6b35; --c-mehta_v2_lam0: #fdba74; --c-pearl_cm: #93b4fb; --c-pearl_cm_ft: #c7d8fd; --c-pearl_dr_cm: #2fc4d9; --c-pearl_dr_cm_ft: #8be6f2;
     --c-pearl_phys: #93b4fb; --c-pearl_phys_ft: #c7d8fd; --c-mehta_phys: #ff6b35; --c-maml_phys: #4cc27a;
-    --c-hz_id: #ff6b35; --c-hz_ood_goal: #f2b63d; --c-hz_ood_dyn: #f5b394; --c-hz_point_goal: #93b4fb; --c-hz_waypoints: #4cc27a;
+    --c-hz_id: #ff6b35; --c-hz_ood_goal: #f2b63d; --c-hz_ood_dyn: #f5b394; --c-hz_point_goal: #93b4fb; --c-hz_waypoints: #4cc27a; --c-hz_compute: #a59b8f;
     color-scheme: dark;
   }
 }
@@ -47,7 +47,7 @@
   --c-pearl: #6f9cf5; --c-pearl_ft: #a7c3fa; --c-maml: #4cc27a;
   --c-mehta_v2: #ff6b35; --c-mehta_v2_lam0: #fdba74; --c-pearl_cm: #93b4fb; --c-pearl_cm_ft: #c7d8fd; --c-pearl_dr_cm: #2fc4d9; --c-pearl_dr_cm_ft: #8be6f2;
     --c-pearl_phys: #93b4fb; --c-pearl_phys_ft: #c7d8fd; --c-mehta_phys: #ff6b35; --c-maml_phys: #4cc27a;
-    --c-hz_id: #ff6b35; --c-hz_ood_goal: #f2b63d; --c-hz_ood_dyn: #f5b394; --c-hz_point_goal: #93b4fb; --c-hz_waypoints: #4cc27a;
+    --c-hz_id: #ff6b35; --c-hz_ood_goal: #f2b63d; --c-hz_ood_dyn: #f5b394; --c-hz_point_goal: #93b4fb; --c-hz_waypoints: #4cc27a; --c-hz_compute: #a59b8f;
   color-scheme: dark;
 }
 

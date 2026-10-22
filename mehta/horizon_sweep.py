@@ -77,12 +77,13 @@ def sweep(envs, horizons, seeds, jobs: int, force: bool):
 
 
 def aggregate(envs, horizons, seeds) -> dict:
-    """{env: {"return": {set: {k: [mean, std, n]}}, "wall_min": {k: ...}, "peak_mb": {k: ...}}};
-    a seed's return = mean over that set's tasks at the last post-training checkpoint."""
+    """{env: {"return": {set: {k: [mean, std, n]}}, "wall_min" | "peak_mb" | "sample_grads_m": {k: ...}}};
+    a seed's return = mean over that set's tasks at the last post-training checkpoint. sample_grads_m
+    (meta-training sample-gradients, millions) is the deterministic compute; wall-clock and memory are measured."""
     ms = lambda xs: [round(float(np.mean(xs)), 4), round(float(np.std(xs)), 4), len(xs)]
     out, kfinal = {}, {}
     for e in envs:
-        acc = {"return": {}, "wall_min": {}, "peak_mb": {}}
+        acc = {"return": {}, "wall_min": {}, "peak_mb": {}, "sample_grads_m": {}}
         for k in horizons:
             for s in seeds:
                 p = result_path(e, k, s)
@@ -97,8 +98,9 @@ def aggregate(envs, horizons, seeds) -> dict:
                         float(np.mean([t[K] for t in tasks])))
                 acc["wall_min"].setdefault(k, []).append(run["wall_sec"] / 60)
                 acc["peak_mb"].setdefault(k, []).append(run["peak_rss_mb"])
+                acc["sample_grads_m"].setdefault(k, []).append(run["train"]["sample_grads"] / 1e6)
         out[e] = {"return": {sn: {str(k): ms(v) for k, v in d.items()} for sn, d in acc["return"].items()},
-                  **{m: {str(k): ms(v) for k, v in acc[m].items()} for m in ("wall_min", "peak_mb")}}
+                  **{m: {str(k): ms(v) for k, v in acc[m].items()} for m in ("wall_min", "peak_mb", "sample_grads_m")}}
     return {"method": METHOD, "k_short": K_SHORT, "k_default": METHODS[METHOD]["k_inner"], "horizons": horizons,
             "seeds": list(seeds), "k_final": kfinal, "set_labels": SET_LABELS, "set_colors": SET_COLORS,
             "env_labels": ENV_LABELS, "curves": out}
@@ -111,8 +113,7 @@ def figure(agg: dict, dest: Path):
     plt.rcParams.update({"font.size": 10, "axes.spines.top": False, "axes.spines.right": False,
                          "figure.facecolor": "#fbf8f3", "axes.facecolor": "#fbf8f3"})
     envs = [e for e in ENV_LABELS if agg["curves"].get(e, {}).get("return")]
-    fig, axes = plt.subplots(1, len(envs) + 1, figsize=(4.6 * (len(envs) + 1), 3.6), squeeze=False)
-    axes = axes[0]
+    fig, axes = plt.subplots(2, len(envs), figsize=(5.2 * len(envs), 6.8), squeeze=False)
 
     def band(ax, d, color, label, ls="-"):
         ks = sorted(d, key=int)
@@ -127,7 +128,7 @@ def figure(agg: dict, dest: Path):
         ax.axvline(agg["k_default"], color="#6b6157", lw=0.8, ls=":")
         ax.set_xlabel("inner-loop horizon K_inner")
 
-    for ax, e in zip(axes, envs):
+    for ax, e in zip(axes[0], envs):
         for sn, d in agg["curves"][e]["return"].items():
             band(ax, d, SET_COLORS.get(sn), SET_LABELS.get(sn, sn))
         ax.set_title(ENV_LABELS[e], fontsize=10); xaxis(ax)
@@ -135,11 +136,11 @@ def figure(agg: dict, dest: Path):
         ax.text(agg["k_default"], 0.02, " default (50)", transform=ax.get_xaxis_transform(), fontsize=8, color="#6b6157")
         if len(agg["curves"][e]["return"]) > 1:
             ax.legend(frameon=False, fontsize=8)
-    ax = axes[-1]
-    for e, color in zip(envs, ("#1e3a8a", "#15803d")):
-        band(ax, agg["curves"][e]["wall_min"], color, ENV_LABELS[e].split(" (")[0])
-    ax.set_title("Cost per run (train + evaluate)", fontsize=10); xaxis(ax)
-    ax.set_ylabel("wall-clock (minutes)"); ax.legend(frameon=False, fontsize=8)
+    for ax, (m, title, ylab) in zip(axes[1], (("wall_min", "Measured wall-clock per run (shared machine)", "minutes"),
+                                              ("peak_mb", "Measured peak memory per run", "MB (peak RSS)"))):
+        for e, color in zip(envs, ("#1e3a8a", "#15803d")):
+            band(ax, agg["curves"][e][m], color, ENV_LABELS[e].split(" (")[0])
+        ax.set_title(title, fontsize=10); xaxis(ax); ax.set_ylabel(ylab); ax.legend(frameon=False, fontsize=8)
     fig.suptitle(f"MEHTA v2: final adaptation return vs. inner-loop horizon (mean ± std over {len(agg['seeds'])} seeds)",
                  fontsize=10)
     fig.tight_layout(); dest.parent.mkdir(parents=True, exist_ok=True); fig.savefig(dest, dpi=150); plt.close(fig)
@@ -153,10 +154,10 @@ def report(envs=ENVS, horizons=HORIZONS, seeds=SEEDS):
     for e, c in agg["curves"].items():
         print(e)
         for sn, d in c["return"].items():
-            print(f"  {sn:<9}" + "  ".join(f"K={k}: {d[k][0]:7.2f}±{d[k][1]:.2f}" for k in sorted(d, key=int)))
-        for m in ("wall_min", "peak_mb"):
+            print(f"  {sn:<15}" + "  ".join(f"K={k}: {d[k][0]:7.2f}±{d[k][1]:.2f}" for k in sorted(d, key=int)))
+        for m in ("wall_min", "peak_mb", "sample_grads_m"):
             d = c[m]
-            print(f"  {m:<9}" + "  ".join(f"K={k}: {d[k][0]:7.1f}±{d[k][1]:.1f}" for k in sorted(d, key=int)))
+            print(f"  {m:<15}" + "  ".join(f"K={k}: {d[k][0]:7.1f}±{d[k][1]:.1f}" for k in sorted(d, key=int)))
 
 
 def main():

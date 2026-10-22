@@ -26,6 +26,10 @@ flowchart LR
 |---|
 | ![v3 adaptation](docs/img/adaptation_v3.png) |
 
+**Horizon ablation** (fresh seeds 12–14): MEHTA v2's inner-loop horizon swept over 5, 10, 20, 40 and 80 steps (1×–16× the short setting), with nothing else changed. Final return after 400 post-training steps is **flat** on every task set. On Point-Goal in-distribution goals, 16× scores −4.57 ± 0.47 against −4.99 ± 0.81 at 1×, and Waypoints is noisy with no trend. Going to 16× costs 1.5× the meta-training sample-gradients and buys nothing measurable. Wall-clock and memory were measured on a heavily shared machine, so they are noisy. Reproduce with `uv run python -m mehta.horizon_sweep`.
+
+![Horizon ablation](docs/img/horizon.png)
+
 | v2 (fresh seeds 3–5) | |
 |---|---|
 | ![v2 adaptation](docs/img/adaptation_v2.png) | ![v2 waypoints](docs/img/waypoints_v2.png) |
