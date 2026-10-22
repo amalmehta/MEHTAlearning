@@ -6,6 +6,7 @@ __pycache__/
 .claude/
 results/models/
 results/logs/
+results/horizon/models/
 results_dev/
 results_dev2/
 results_dev2/
